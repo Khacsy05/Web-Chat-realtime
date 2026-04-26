@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { Server } from 'socket.io';
 import http from "http";
 import routerUser from './Router/routerUser.js';
+import { onlineUsers } from './config/socketStore.js';
 
 dotenv.config();
 const app = express();
@@ -20,22 +21,27 @@ const io = new Server(server,{
   }
 })
 
-const onlineUsers = {};
+
 
 io.on("connection", (socket) => {
   console.log("🔥 Client connected:", socket.id);
   socket.on("disconnect", () => {
-    console.log("❌ Client disconnected:", socket.id);
+  for (let [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
   });
   socket.on("join", (userId) => {
-    onlineUsers[userId] = socket.id;
+    onlineUsers.set(userId, socket.id);
     console.log("🟢 User online:", userId);
   });
 
   socket.on("send-message", ({ from, to, text }) => {
     console.log("📩 Message:", from, "→", to, text);
 
-    const receiverSocket = onlineUsers[to];
+    const receiverSocket = onlineUsers.get(to);
     if (receiverSocket) {
       io.to(receiverSocket).emit("receive-message", {
         from,
@@ -61,3 +67,4 @@ io.on("connection", (socket) => {
 })();
 
 
+export { io };
