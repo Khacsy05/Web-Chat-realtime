@@ -1,5 +1,9 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import { io } from "../server.js";
+import { onlineUsers } from "../config/socketStore.js";
+
+
 export const friendRequest = async (req,res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
@@ -54,6 +58,15 @@ export const friendRequest = async (req,res) => {
         })
         
         const newRequest = await request.save();
+
+        const socketId = onlineUsers.get(to.toString());
+        if (socketId) {
+            io.to(socketId).emit("friend_request", {
+                from,
+                message: "Bạn có lời mời kết bạn mới"
+            });
+        }
+
         res.status(200).json(newRequest);
     } catch (error) {
         console.error("Loi khi goi friendRequest",error);
