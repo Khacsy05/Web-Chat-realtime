@@ -129,6 +129,15 @@ export const acceptFriend = async (req, res) => {
         }
         request.status = "accepted";
         await request.save();
+
+        const socketId = onlineUsers.get(from.toString());
+        if (socketId) {
+            io.to(socketId).emit("accept_friend", {
+                to,
+                message: "Da chap nhan ket ban"
+            });
+        }
+
         res.json({ message: "Đã chấp nhận kết bạn" });
     } catch (error) {
         console.error("Loi khi goi acceptFriend",error);
@@ -155,8 +164,16 @@ export const rejectFriend = async (req, res) => {
     request.status = "rejected";
     await request.save();
 
-    res.json({ message: "Đã từ chối kết bạn" });
+    const socketId = onlineUsers.get(from.toString());
+        if (socketId) {
+            io.to(socketId).emit("reject_friend", {
+                to,
+                message: "Da tu choi ket ban"
+            });
+        }
 
+    res.json({ message: "Đã từ chối kết bạn" });
+    
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -179,6 +196,13 @@ export const cancelRequest = async (req, res) => {
     }
 
     await request.deleteOne();
+
+    const socketId = onlineUsers.get(to.toString());
+        if (socketId) {
+            io.to(socketId).emit("cancel_friend", {
+                message: "Lời mời kết bạn đã bị huỷ"
+            });
+        }
 
     res.json({ message: "Đã huỷ lời mời" });
 
