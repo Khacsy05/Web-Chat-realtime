@@ -6,12 +6,17 @@ import { Server } from 'socket.io';
 import http from "http";
 import routerUser from './Router/routerUser.js';
 import { onlineUsers } from './config/socketStore.js';
+import routerConversation from './Router/routerConversation.js';
+import routerMessage from './Router/routerMessage.js';
 
 dotenv.config();
 const app = express();
 app.use(express.json());
 app.use("/api/auth",routerAuth);
-app.use("/api/user",routerUser)
+app.use("/api/user",routerUser);
+app.use("/api/conversation",routerConversation);
+app.use("/api/message",routerMessage);
+
 const server = http.createServer(app);
 
 const io = new Server(server,{
