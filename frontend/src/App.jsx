@@ -1,17 +1,12 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-function App() {
-  const [count, setCount] = useState(0)
+﻿import { BrowserRouter } from "react-router-dom";
+import AppRouter from "./routes";
+import { Toaster } from "sonner";
 
+export default function App() {
   return (
-    <div>
-      <h1 class='text-3xl font-bold underline'>
-        Hello world
-      </h1>
-    </div>
-  )
+    <BrowserRouter>
+      <AppRouter />
+      <Toaster richColors position="bottom-right"/>
+    </BrowserRouter>
+  );
 }
-
-export default App
