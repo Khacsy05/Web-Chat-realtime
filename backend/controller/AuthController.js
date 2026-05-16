@@ -11,6 +11,7 @@ export const login = async (req,res) => {
             })
         }
         const user = await Auth.findOne({username});
+        const isUser = await User.findOne({ userId: user._id });
         if(!user){
             return res.status(404).json({
                 message: "Tai khoan khong ton tai"
@@ -32,7 +33,15 @@ export const login = async (req,res) => {
         )
         res.status(200).json({
             message : "Dang nhap thanh cong",
-            token
+            token,
+            user: {
+                _id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                fullname: isUser?.fullname || null
+            }
+            
         })
     } catch (error) {
         return res.status(500).json({

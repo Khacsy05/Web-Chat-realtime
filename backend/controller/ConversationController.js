@@ -30,7 +30,7 @@ export const getUserConversations = async (req, res) => {
         const conversations = await Conversation.find({
             members: user._id
         })
-        .populate("members", "fullname")
+        .populate("members", "fullname userId")
         .sort({ updatedAt: -1 });
 
         res.json(conversations);

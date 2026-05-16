@@ -8,9 +8,14 @@ import routerUser from './Router/routerUser.js';
 import { onlineUsers } from './config/socketStore.js';
 import routerConversation from './Router/routerConversation.js';
 import routerMessage from './Router/routerMessage.js';
-
+import cors from "cors";
 dotenv.config();
 const app = express();
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
+
 app.use(express.json());
 app.use("/api/auth",routerAuth);
 app.use("/api/user",routerUser);
@@ -22,6 +27,7 @@ const server = http.createServer(app);
 const io = new Server(server,{
   cors:{
     origin:"http://localhost:5173",
+    credentials: true,
     methods: ["GET", "POST"],
   }
 })
@@ -43,17 +49,15 @@ io.on("connection", (socket) => {
     console.log("🟢 User online:", userId);
   });
 
-  socket.on("send-message", ({ from, to, text }) => {
-    console.log("📩 Message:", from, "→", to, text);
-
-    const receiverSocket = onlineUsers.get(to);
+  socket.on("send-message", ({ from, to, text, conversationId, messageId, name }) => {
+    const receiverSocket = onlineUsers.get(String(to));
     if (receiverSocket) {
       io.to(receiverSocket).emit("receive-message", {
-        from,
-        text
+        from, text, conversationId, messageId, name
       });
     }
   });
+
   
 });
 

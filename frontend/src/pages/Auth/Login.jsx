@@ -41,14 +41,14 @@ const Login = () => {
             setAuth(respone.data.user,respone.data.token)
             toast.success("Dang nhap thanh cong")
             navigate('/')
-            console.log(respone)
+            console.log(respone)    
 
         } catch (error) {
             console.error("Login failed:", error);
             toast.error("Tai khoan hoac mat khau khong chinh xac")
         }
     }
-  return (
+  return (  
     <div>
         <span className='justify-center flex text-[30px]'>Dang nhap</span>
         <div className='items-center justify-center flex flex-col sm:flex-row '>

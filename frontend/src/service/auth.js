@@ -13,7 +13,7 @@ const auth = {
 
     sendOtp: async (data) => {
         try {
-            const response = await api.post("/auth/send-otp",data)
+            const response = await api.post("/auth/sendOtp",data)
             return response
         } catch (error) {
             throw error.response || { message: "Lỗi gui otp" };
@@ -22,7 +22,7 @@ const auth = {
 
     verifyOtp: async (data) => {
         try {
-            const response = await api.post("/auth/verify-otp",data)
+            const response = await api.post("/auth/verifyOtp",data)
             return response
         } catch (error) {
             throw error.response || { message: "Lỗi xac thuc otp" };
@@ -31,7 +31,7 @@ const auth = {
 
     ResetPass: async (data) => {
         try {
-            const response = await api.put("/auth/resetPassword",data)
+            const response = await api.put("/auth/resetPass",data)
             return response
         } catch (error) {
             throw error.response || { message: "Lỗi doi mat khau" };
