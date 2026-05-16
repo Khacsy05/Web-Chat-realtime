@@ -200,3 +200,22 @@ export const resetPass = async (req,res) => {
         });1
     }
 }
+
+export const me = async(req,res) => {
+    try {
+        const authId = req.user._id; // lấy từ middleware JWT
+        const auth = await Auth.findById(authId).select("-password");
+        const user = await User.findOne({ userId: authId });
+        if(!user){
+            return res.status(404).json({
+                message: "User khong ton tai"
+            })
+        }
+        res.json({
+            auth,
+            profile: user,
+        });
+    } catch (err) {
+        res.status(500).json(err.message);
+    }
+}
