@@ -64,7 +64,7 @@ const HomePage = () => {
       {/* Mobile Popup/Drawer – Hiện khi màn hình nhỏ */}
       {isOpenRightPage && (
         <div
-          className="absolute inset-0 z-50 lg:hidden bg-black/5"
+          className="absolute inset-0 z-50 lg:hidden "
           onClick={() => setIsOpenRightPage(false)}
         >
           <div

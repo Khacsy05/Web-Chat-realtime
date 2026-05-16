@@ -36,6 +36,14 @@ const auth = {
         } catch (error) {
             throw error.response || { message: "Lỗi doi mat khau" };
         }
+    },
+    getProfile: async (data) => {
+        try {
+            const response = await api.get("/auth/getProfile");
+            return response
+        } catch (error) {
+            throw error.response || { message: "Lỗi doi mat khau" };
+        }
     }
 }
 export default auth
