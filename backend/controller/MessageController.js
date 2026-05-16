@@ -20,6 +20,7 @@ export const sendMessage = async (req, res) => {
     // update last message conversation
     await Conversation.findByIdAndUpdate(conversationId, {
       lastMessage: content,
+      lastSenderId: sender,
       updatedAt: Date.now()
     });
 
@@ -34,10 +35,12 @@ export const getMessages = async (req, res) => {
     const { conversationId } = req.params;
 
     const messages = await Message.find({ conversationId })
-      .populate("sender", "fullname")
+      .populate("sender", "fullname userId")
       .sort({ createdAt: 1 });
 
     const result = messages.map(m => ({
+        messageId: m._id,
+        senderId : m.sender.userId,
         name: m.sender.fullname,
         content: m.content
     }));
