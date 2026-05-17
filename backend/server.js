@@ -21,7 +21,7 @@ app.use("/api/auth",routerAuth);
 app.use("/api/user",routerUser);
 app.use("/api/conversation",routerConversation);
 app.use("/api/message",routerMessage);
-
+app.use("/uploads", express.static("uploads"));
 const server = http.createServer(app);
 
 const io = new Server(server,{

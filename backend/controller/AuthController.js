@@ -4,19 +4,20 @@ import jwt from "jsonwebtoken"
 import transporter from "../services/auth.service.js";
 export const login = async (req,res) => {
     try {
-        const {username,password} = req.body;
-        if(!username && !password){
+        const username = req.body.username?.trim();
+        const password = req.body.password;
+        if(!username || !password){
             return res.status(404).json({
                 message: "vui long nhap day du email va password"
             })
         }
         const user = await Auth.findOne({username});
-        const isUser = await User.findOne({ userId: user._id });
         if(!user){
             return res.status(404).json({
                 message: "Tai khoan khong ton tai"
             })
         }
+        const isUser = await User.findOne({ userId: user._id });
         if(password !== user.password){
             return res.status(404).json({
                 message: "Mat khau khong dung"
@@ -39,7 +40,8 @@ export const login = async (req,res) => {
                 username: user.username,
                 email: user.email,
                 role: user.role,
-                fullname: isUser?.fullname || null
+                fullname: isUser?.fullname || null,
+                avatar: isUser?.avatar || "/uploads/default-avatar.png"
             }
             
         })
@@ -204,7 +206,6 @@ export const resetPass = async (req,res) => {
 export const me = async(req,res) => {
     try {
         const authId = req.user._id; // lấy từ middleware JWT
-        const auth = await Auth.findById(authId).select("-password");
         const user = await User.findOne({ userId: authId });
         if(!user){
             return res.status(404).json({
@@ -212,10 +213,31 @@ export const me = async(req,res) => {
             })
         }
         res.json({
-            auth,
             profile: user,
         });
     } catch (err) {
         res.status(500).json(err.message);
     }
 }
+export const updateProfile = async (req, res) => {
+  try {
+    const authId = req.user._id;
+    
+    const { fullname, dateOfBirth, address, gender } = req.body;
+
+    const updated = await User.findOneAndUpdate(
+      { userId: authId },
+      {
+        fullname,
+        dateOfBirth,
+        address,
+        gender,
+      },
+      { new: true }
+    );
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json(err.message);
+  }
+};

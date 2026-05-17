@@ -176,7 +176,11 @@ const ConversationView = ({ selectedConversation ,onMessageEvent, onOpenRighPage
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#dbe4ff] text-[18px] font-semibold text-[#3b5bdb]">
-              {displayName.charAt(0).toUpperCase()}
+              <img
+                src={`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`}
+                alt={displayName}
+                className="size-12 rounded-full object-cover"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] font-medium text-[#1f2328]">

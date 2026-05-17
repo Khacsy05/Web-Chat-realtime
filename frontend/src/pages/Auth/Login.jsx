@@ -45,7 +45,11 @@ const Login = () => {
 
         } catch (error) {
             console.error("Login failed:", error);
-            toast.error("Tai khoan hoac mat khau khong chinh xac")
+            const backendMessage =
+              error?.data?.message ||
+              error?.response?.data?.message ||
+              "Dang nhap that bai";
+            toast.error(backendMessage);
         }
     }
   return (  

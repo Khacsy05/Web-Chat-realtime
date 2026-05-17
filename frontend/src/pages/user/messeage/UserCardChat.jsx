@@ -25,7 +25,11 @@ const UserCardChat = ({ userCardChat = [] , onSelectConversation ,lastMessageEve
             onClick={() => onSelectConversation(conversation)}
           >
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#dbe4ff] text-[18px] font-semibold text-[#3b5bdb]">
-              {displayName.charAt(0).toUpperCase()}
+              <img
+                src={`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`}
+                alt={displayName}
+                className="size-10 rounded-full object-cover"
+              />
             </div>
 
             <div className="min-w-0 flex-1">

@@ -9,8 +9,12 @@ export function Header({ onNavigate   }) {
 
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const displayName = user?.displayName || user?.fullname || user?.username || "Nguoi dung";
-  const avatarLetter = displayName.trim().charAt(0).toUpperCase();
+  const [avatarError, setAvatarError] = useState(false);
+  const name = user?.displayName || user?.fullname || user?.username || "Nguoi dung";
+  const avatarLetter = name.charAt(0).toUpperCase();
+  const avatarSrc = user?.avatar
+    ? (user.avatar.startsWith("http") ? user.avatar : `http://localhost:5000${user.avatar}`)
+    : "http://localhost:5000/uploads/default-avatar.png";
 
   return (
     <div>
@@ -18,7 +22,6 @@ export function Header({ onNavigate   }) {
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate("home")}>
             <div className="w-14 h-8 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden border-2 border-blue-200">
-              
             </div>
             <div>
               <div className="font-bold text-4 leading-tight tracking-wide uppercase">Zola</div>
@@ -41,8 +44,19 @@ export function Header({ onNavigate   }) {
                 onClick={() => setDropOpen(!dropOpen)}
                 className="flex items-center gap-2 hover:bg-white/10 px-3 py-2 rounded-lg transition"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-white">{avatarLetter}</div>
-                <span className="text-sm font-medium">{name}</span>
+                {avatarError ? (
+                  <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-white">
+                    {avatarLetter}
+                  </div>
+                ) : (
+                  <img
+                    src={avatarSrc}
+                    alt="avatar"
+                    className="w-8 h-8 rounded-full object-cover"
+                    onError={() => setAvatarError(true)}
+                  />
+                )}
+                
               </button>
 
               {dropOpen && (
@@ -66,7 +80,7 @@ export function Header({ onNavigate   }) {
 
       {profileOpen && (
         <Modal
-          title="Thông tin cá nhân"
+          title="Thông tin tài khoản"
           onClose={() => setProfileOpen(false)}
           size="md"
         >
