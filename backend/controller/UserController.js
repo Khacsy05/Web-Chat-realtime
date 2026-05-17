@@ -210,3 +210,31 @@ export const cancelRequest = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+export const getUserById = async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.params.id });
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json(err.message);
+  }
+};
+
+export const updateAvatar = async (req, res) => {
+  try {
+    const authId = req.user._id;
+
+    const avatarUrl = `/uploads/${req.file.filename}`;
+
+    const updated = await User.findOneAndUpdate(
+      { userId: authId },
+      { avatar: avatarUrl },
+      { new: true }
+    );
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json(err.message);
+  }
+};

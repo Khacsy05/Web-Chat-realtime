@@ -9,9 +9,15 @@ const useAuthStore = create(
       role: null,
       isAuthenticated: false,
 
+      updateUser: (partialUser) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...partialUser } : state.user,
+        }));
+      },
+
       setAuth: (userData, token) => {
         const displayName = userData.fullname;
-
+        
         set({
           user: { ...userData, displayName },
           token,
