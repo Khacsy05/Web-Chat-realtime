@@ -6,20 +6,12 @@ import message from '@/service/message';
 import UserCardChat from './UserCardChat';
 import socket from '@/lib/socket';
 
-
-const ListSeacrh = () => {
-  return (
-    <div>
-
-    </div>
-  )
-}
-
-const ChatList = ({onSelectConversation, lastMessageEvent }) => {
+const ChatList = ({selectedConversation, onSelectConversation, lastMessageEvent }) => {
   const [isSearch,setIsSearch] = useState(false);
   const [tab, setTab] = useState("all");
   const [activeAction, setActiveAction] = useState(null);
   const [conversation,setConversation] = useState([])
+  const [searchValue, setSearchValue] = useState("");
 
   const fetchConverSation = async () => {
     try {
@@ -72,12 +64,17 @@ const ChatList = ({onSelectConversation, lastMessageEvent }) => {
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input className=" h-9 w-[220px] text-sm pl-7  bg-[#ededed]" 
               placeholder="Search..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
               onFocus={() => setIsSearch(true)}
             />
           </div>
           {isSearch ? (
             <Button className="cursor-pointer w-[70px] bg-white text-black hover:bg-[#ededed] "
-              onClick={() => setIsSearch(false)}
+              onClick={() => {
+                setIsSearch(false);
+                setSearchValue(""); // 🔥 reset input
+              }}
             >
               Đóng 
             </Button>
@@ -154,6 +151,7 @@ const ChatList = ({onSelectConversation, lastMessageEvent }) => {
       <div className="flex-1 min-h-0 overflow-y-auto">
         <UserCardChat 
           userCardChat = {conversation} 
+          selectedConversation={selectedConversation}
           onSelectConversation={onSelectConversation}
           lastMessageEvent = {lastMessageEvent}
         />

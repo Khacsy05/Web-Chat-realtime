@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthStore from "@/stores/useAuthStore";
-import Profile from "@/pages/user/profile";
+import Profile from "@/pages/user/profile/profile";
 import Modal from "../Modal";
 export function Header({ onNavigate   }) {
   const [dropOpen, setDropOpen] = useState(false);

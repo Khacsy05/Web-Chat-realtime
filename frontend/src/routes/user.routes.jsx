@@ -2,13 +2,20 @@ import { lazy } from "react";
 import { Navigate } from "react-router-dom";
 
 const UserDashboard = lazy(() => import("@/pages/user/messeage/HomePage"));
-const Friend = lazy(() => import("@/pages/user/Friend"));
-
+const Friend = lazy(() => import("@/pages/user/friend/HomePageFriend"));
+const AllFriend = lazy(() => import("@/pages/user/friend/AllFriend"));
+const FriendChat = lazy(() => import("@/pages/user/friend/FriendChat"));
 
 export const userRoutes = [
-  // Tự động vào dashboard khi truy cập /faculty
-  { index: true, element: <Navigate to="dashboard" replace /> }, 
+  { index: true, element: <Navigate to="dashboard" replace /> },
   { path: "dashboard", element: <UserDashboard /> },
-  // Các path này phải khớp chính xác với path trong menu.config.js
-  { path: "friend", element: <Friend /> },
+  {
+    path: "friend",
+    element: <Friend />,
+    children: [
+      { index: true, element: <Navigate to="allFriend" replace /> },
+      { path: "allFriend", element: <AllFriend /> },
+      { path: "chat/:friendId", element: <FriendChat /> },
+    ],
+  },
 ];

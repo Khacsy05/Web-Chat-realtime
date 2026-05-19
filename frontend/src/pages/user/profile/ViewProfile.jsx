@@ -44,7 +44,7 @@ const ViewProfile = ({ onEdit, profile, onAvatarChange }) => {
       </div>
 
       <div>
-        <Button onClick={onEdit} className="bg-white text-black px-10 hover:bg-[#f8f9fa]">
+        <Button onClick={onEdit} className="bg-white text-black px-42 hover:bg-[#f8f9fa]">
           Sua chi tiet
         </Button>
       </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import useAuthStore from '@/stores/useAuthStore';
 
-const UserCardChat = ({ userCardChat = [] , onSelectConversation ,lastMessageEvent}) => {
+const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConversation, lastMessageEvent }) => {
   const currentUser = useAuthStore((state) => state.user);
 
   return (
@@ -21,7 +21,11 @@ const UserCardChat = ({ userCardChat = [] , onSelectConversation ,lastMessageEve
           <button
             key={conversation._id}
             type="button"
-            className="flex w-full items-center gap-3 border-b border-[#f1f3f5] px-2 py-2 text-left transition hover:bg-[#f8f9fa]"
+            className={`flex w-full items-center gap-3 border-b border-[#f1f3f5] px-2 py-2 text-left transition ${
+              String(selectedConversation?._id) === String(conversation._id)
+                ? "bg-[#E8EDFF]"
+                : "bg-white hover:bg-[#f8f9fa]"
+            }`}
             onClick={() => onSelectConversation(conversation)}
           >
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#dbe4ff] text-[18px] font-semibold text-[#3b5bdb]">
