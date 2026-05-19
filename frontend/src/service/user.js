@@ -13,6 +13,14 @@ const user = {
         } catch (error) {
             throw error.response || { message: "Loi cap nhat avatar" };
         }
+    },
+    getAllFriend : async() => {
+        try {
+            const response = await api.get("/user/getAllFriend");
+            return response
+        } catch (error) {
+             throw error.response || { message: "Lỗi get conversation" };
+        }
     }
 }
 

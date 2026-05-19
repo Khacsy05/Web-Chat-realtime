@@ -105,7 +105,7 @@ const EditProfile = ({ onBack, onSave, profile }) => {
       <p className="text-red-500 text-xs">{errors.gender?.message}</p>
 
       {/* Button */}
-      <Button type="submit" className="w-full">
+      <Button type="submit" className="bg-white text-black w-full hover:bg-[#f8f9fa]" onSave >
         💾 Lưu thay đổi
       </Button>
     </form>
