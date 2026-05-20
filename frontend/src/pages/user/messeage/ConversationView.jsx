@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input';
 import message from '@/service/message';
 import useAuthStore from '@/stores/useAuthStore';
-import { PanelLeft, Search, Send, ThumbsUp } from 'lucide-react';
+import { ArrowLeft, PanelLeft, Search, Send, ThumbsUp } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -17,13 +17,34 @@ const EMPTY_FORM = {
   content: "",
 };
 
-const ConversationView = ({ selectedConversation ,onMessageEvent, onOpenRighPage,isOpenRighPage}) => {
+const MD_PX = 768;
+
+const ConversationView = ({
+  selectedConversation,
+  onMessageEvent,
+  onOpenRighPage,
+  isOpenRighPage,
+  onMobileBack,
+}) => {
   const currentUser = useAuthStore((state) => state.user);
   const [mess, setMess] = useState([]);
   const chatBodyRef = useRef(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [loadedConversationId, setLoadedConversationId] = useState(null);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < MD_PX
+  );
   const LIKE_EMOJI = "👍";
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MD_PX - 1}px)`);
+    const handler = () => setIsNarrowScreen(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const showMobileBack = Boolean(onMobileBack && isNarrowScreen && selectedConversation);
 
   useEffect(() => {
     if (!currentUser?._id) return;
@@ -44,26 +65,41 @@ const ConversationView = ({ selectedConversation ,onMessageEvent, onOpenRighPage
   const content = watch("content");
 
   useEffect(() => {
+    let ignore = false;
+    const conversationId = selectedConversation?._id;
+
     const fetchMessage = async () => {
-      if (!selectedConversation?._id) {
+      if (!conversationId) {
+        setMess([]);
         setLoadedConversationId(null);
+        setIsLoadingMessages(false);
         return;
       }
+
+      // Clear ngay để UI chuyển tức thì khi bấm đổi người chat
+      setMess([]);
+      setLoadedConversationId(null);
       setIsLoadingMessages(true);
+
       try {
-        const response = await message.getMessage(selectedConversation._id);
+        const response = await message.getMessage(conversationId);
+        if (ignore) return;
         setMess(response.data);
-        setLoadedConversationId(String(selectedConversation._id));
+        setLoadedConversationId(String(conversationId));
       } catch (error) {
+        if (ignore) return;
         console.error('Error fetching message:', error);
-        setLoadedConversationId(String(selectedConversation._id));
-      } finally{
+        setLoadedConversationId(String(conversationId));
+      } finally {
+        if (ignore) return;
         setIsLoadingMessages(false);
       }
-      
     };
 
     fetchMessage();
+    return () => {
+      ignore = true;
+    };
   }, [selectedConversation?._id]);
 
   useEffect(() => {
@@ -105,7 +141,7 @@ const ConversationView = ({ selectedConversation ,onMessageEvent, onOpenRighPage
     el.scrollTop = el.scrollHeight;
   }, [selectedConversation?._id, mess.length, isLoadingMessages, loadedConversationId]);
 
-  if (!selectedConversation) {
+  if (!selectedConversation?._id) {
     return (
       <div className="flex h-full items-center justify-center bg-white text-sm text-muted-foreground">
         Chon mot cuoc tro chuyen
@@ -114,12 +150,12 @@ const ConversationView = ({ selectedConversation ,onMessageEvent, onOpenRighPage
   }
 
   const otherMember =
-    selectedConversation.members?.find(
+    selectedConversation?.members?.find(
       (member) => String(member.userId) !== String(currentUser?._id)
-    ) || selectedConversation.members?.[0];
+    ) || selectedConversation?.members?.[0];
 
   const thisMember =
-    selectedConversation.members?.find(
+    selectedConversation?.members?.find(
       (member) => String(member.userId) === String(currentUser?._id)
     ); 
   const displayName = otherMember?.fullname || 'Nguoi dung';
@@ -174,7 +210,17 @@ const ConversationView = ({ selectedConversation ,onMessageEvent, onOpenRighPage
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b bg-white px-3 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            {showMobileBack && (
+              <button
+                type="button"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#1f2328] hover:bg-[#f1f3f5]"
+                onClick={onMobileBack}
+                aria-label="Quay lai"
+              >
+                <ArrowLeft size={22} />
+              </button>
+            )}
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#dbe4ff] text-[18px] font-semibold text-[#3b5bdb]">
               <img
                 src={`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`}
@@ -207,7 +253,13 @@ const ConversationView = ({ selectedConversation ,onMessageEvent, onOpenRighPage
       </div>
 
       <div ref={chatBodyRef} className="flex-1 min-h-0 overflow-y-auto p-4">
-        {mess.map((item, index) => {
+        {isLoadingMessages && (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Dang tai tin nhan...
+          </div>
+        )}
+
+        {!isLoadingMessages && mess.map((item, index) => {
           const isMe = String(item.senderId) === String(currentUser?._id);
 
           return (

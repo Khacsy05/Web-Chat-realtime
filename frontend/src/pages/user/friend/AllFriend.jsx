@@ -2,12 +2,27 @@ import user from '@/service/user';
 import { Input } from '@/components/ui/input';
 import { ArrowUpDown, ChevronDown, Funnel, Search, Users } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
+
 const AllFriend = () => {
   const navigate = useNavigate();
+  const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};
   const [friend, setFriend] = useState([]);
   const [searchValue, setSearchValue] = useState('');
   const didFetch = useRef(false);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 1024
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: 1023px)`);
+    const handler = () => setIsNarrowScreen(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const showBackButton = isNarrowFromLayout ?? isNarrowScreen;
 
   const fetchFriend = async () => {
     try {
@@ -30,9 +45,19 @@ const AllFriend = () => {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#f8f9fa]">
+    <div className="flex h-full min-h-0 w-full flex-col bg-[#f8f9fa]">
       <div className="shrink-0 border-b bg-white px-3 py-3">
         <div className="flex items-center gap-2 p-2 text-[15px] font-medium text-[#1f2328]">
+          {showBackButton && (
+            <button
+              type="button"
+              className="mr-1 rounded-full p-2 hover:bg-[#f1f3f5]"
+              onClick={() => openFriendSidebar?.()}
+              aria-label="Quay lai"
+            >
+              ←
+            </button>
+          )}
           <Users size={20} />
           Danh sach ban be
         </div>
