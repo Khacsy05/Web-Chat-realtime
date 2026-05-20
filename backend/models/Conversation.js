@@ -11,6 +11,12 @@ const conversationSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Key cố định cho chat 1-1, tránh tạo trùng khi 2 request chạy song song
+    participantKey: {
+        type: String,
+        unique: true,
+        sparse: true,
+    },
     lastMessage: { type: String, default: "" },
     lastSenderId: {
       type: mongoose.Schema.Types.ObjectId,

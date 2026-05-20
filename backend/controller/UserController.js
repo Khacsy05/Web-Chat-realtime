@@ -77,10 +77,15 @@ export const friendRequest = async (req,res) => {
 export const getAllFriend = async (req,res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
+        if(!user){
+            return res.status(400).json({
+                message : "Khong co sinh vien"
+            })
+        }
         const relations = await FriendRequest.find({
             status: "accepted",
             $or: [{from: user._id} , {to: user._id}]
-        }).populate("from to","fullname")
+        }).populate("from to","fullname avatar")
 
         if(!relations){
             return res.status(400).json({

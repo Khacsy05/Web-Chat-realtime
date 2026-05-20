@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import ConversationView from './ConversationView';
 import DetailsPanel from './DetailsPanel';
 
-const ChatPanel = ({ selectedConversation, onMessageEvent }) => {
+const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack }) => {
   const [isOpenRightPage, setIsOpenRightPage] = useState(
     () => typeof window !== 'undefined' && window.innerWidth >= 1024
   );
@@ -38,6 +38,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent }) => {
           onMessageEvent={handleMessageEvent}
           onOpenRighPage={setIsOpenRightPage}
           isOpenRighPage={isOpenRightPage}
+          onMobileBack={onMobileBack}
         />
       </main>
 

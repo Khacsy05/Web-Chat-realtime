@@ -1,20 +1,85 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import FriendSiderBar from './FriendSiderBar'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 
+const LG_PX = 1024;
 
 const HomePageFriend = () => {
+  const location = useLocation();
+  const [isNarrowScreen, setIsNarrowScreen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < LG_PX
+  );
+  const [mobileShowOutlet, setMobileShowOutlet] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${LG_PX - 1}px)`);
+    const handler = () => setIsNarrowScreen(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const openFriendContent = () => {
+    if (isNarrowScreen) setMobileShowOutlet(true);
+  };
+
+  const openFriendSidebar = () => {
+    if (isNarrowScreen) setMobileShowOutlet(false);
+  };
+
+  useEffect(() => {
+    if (!isNarrowScreen) {
+      setMobileShowOutlet(true);
+      return;
+    }
+
+    if (location.state?.showFriendContent) {
+      setMobileShowOutlet(true);
+      return;
+    }
+
+    if (location.pathname.includes('/friend/chat/')) {
+      setMobileShowOutlet(true);
+      return;
+    }
+
+    if (location.pathname.includes('/friend/allFriend')) {
+      setMobileShowOutlet(true);
+      return;
+    }
+
+    setMobileShowOutlet(false);
+  }, [isNarrowScreen, location.pathname, location.state?.showFriendContent]);
+
+  const outletContext = {
+    openFriendContent,
+    openFriendSidebar,
+    isNarrowScreen,
+  };
+
   return (
-    <div className="relative flex h-full min-h-0 overflow-hidden">
-      {/* Bên trái – ẩn khi mobile */}
-      <aside className="hidden min-h-0 w-[340px] shrink-0 border-r bg-white md:block">
-        <FriendSiderBar/>
+    <div className="relative flex h-full min-h-0 w-full overflow-hidden">
+      {/* >= lg: sidebar + outlet cạnh nhau */}
+      <aside className="hidden min-h-0 w-[340px] shrink-0 border-r bg-white lg:flex lg:flex-col">
+        <FriendSiderBar onOpenContent={openFriendContent} />
       </aside>
 
-      {/* Ở giữa – luôn hiển thị */}
-      <main className="flex-1 min-h-0 overflow-hidden">
-        <Outlet />
+      <main className="hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex">
+        <Outlet context={outletContext} />
       </main>
+
+      {/* < lg: chỉ 1 panel full width */}
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden lg:hidden">
+        {!mobileShowOutlet ? (
+          <div className="flex h-full w-full min-w-0 flex-col bg-white">
+            <FriendSiderBar onOpenContent={openFriendContent} />
+          </div>
+        ) : (
+          <main className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden">
+            <Outlet context={outletContext} />
+          </main>
+        )}
+      </div>
     </div>
   )
 }

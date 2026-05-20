@@ -6,7 +6,7 @@ import React, { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import useAuthStore from "@/stores/useAuthStore";
 
-const FriendSiderBar = () => {
+const FriendSiderBar = ({ onOpenContent }) => {
     const [isSearch,setIsSearch] = useState(false);
     const role = useAuthStore((state) => state.role);
     const [searchValue, setSearchValue] = useState("");
@@ -72,6 +72,7 @@ const FriendSiderBar = () => {
                         <NavLink
                         key={item.path}
                         to={item.path}
+                        onClick={() => onOpenContent?.()}
                         className={({ isActive }) =>
                             `flex items-center rounded-sm p-3 transition ${
                             isActive
