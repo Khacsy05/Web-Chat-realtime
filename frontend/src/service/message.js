@@ -1,17 +1,23 @@
 import api from "@/lib/axios";
 
 const message = {
-    getConversation: async() => {
-        try {
-            const response = await api.get("/conversation/getUserConversations");
-            return response
-        } catch (error) {
-            throw error.response || { message: "Lỗi get conversation" };
-        }
+    getConversation: async (params) => {
+        const res = await api.get("/conversation/getUserConversations", {
+            params: {
+                limit: params?.limit || 20,
+                after: params?.after || null,
+            }
+        });
+        return res;
     },
-    getMessage: async(conversationId) => {
+    getMessage: async(conversationId,params) => {
         try {
-            const response  = await api.get(`/message/getMessage/${conversationId}`);
+            const response  = await api.get(`/message/getMessage/${conversationId}`,{
+                params: {
+                    limit: params?.limit || 20,
+                    before: params?.before || null,
+                }
+            });
             return response
         } catch (error) {
              throw error.response || { message: "Lỗi get message" };

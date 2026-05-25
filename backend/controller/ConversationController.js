@@ -67,13 +67,33 @@ export const getUserConversations = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
 
-        const conversations = await Conversation.find({
-            members: user._id
-        })
-        .populate("members", "fullname userId avatar")
-        .sort({ updatedAt: -1 });
+        const limit = Number(req.query.limit) || 20;
+        const after = req.query.after;
 
-        res.json(conversations);
+        const query = {
+            members: user._id
+        };
+
+        if (after) {
+            query.updatedAt = { $lt: after };
+        }
+        const conversations = await Conversation.find(query)
+        .populate("members", "fullname userId avatar")
+        .sort({ updatedAt: -1 })
+        .limit(limit+1);
+
+        const nextCursor = conversations.length
+        ? conversations[conversations.length - 1].updatedAt
+        : null;
+
+        const hasMore = conversations.length > limit;
+        if (hasMore) conversations.pop();
+        
+        res.json({
+            items: conversations,
+            hasMore,
+            nextCursor
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
