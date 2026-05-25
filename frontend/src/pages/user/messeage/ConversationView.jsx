@@ -31,6 +31,14 @@ const ConversationView = ({
   const chatBodyRef = useRef(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [loadedConversationId, setLoadedConversationId] = useState(null);
+  const [cursor, setCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadRef = useRef(null);
+  const shouldScrollToBottomRef = useRef(true);
+  const scrollSnapshotRef = useRef({ prevScrollHeight: 0, prevScrollTop: 0 });
+  // Track which conversation the currently DISPLAYED messages belong to
+  const displayedConversationIdRef = useRef(null);
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < MD_PX
   );
@@ -64,46 +72,73 @@ const ConversationView = ({
 
   const content = watch("content");
 
-  useEffect(() => {
-    let ignore = false;
-    const conversationId = selectedConversation?._id;
+  const fetchMessage = async (conversationId, isReset = false) => {
+    if (!conversationId) return;
+    if (loadingMore || (!hasMore && !isReset)) return;
 
-    const fetchMessage = async () => {
-      if (!conversationId) {
-        setMess([]);
-        setLoadedConversationId(null);
-        setIsLoadingMessages(false);
-        return;
-      }
-
-      // Clear ngay để UI chuyển tức thì khi bấm đổi người chat
-      setMess([]);
-      setLoadedConversationId(null);
+    if (isReset) {
       setIsLoadingMessages(true);
+      setCursor(null);
+      setLoadedConversationId(null);
+    }
 
-      try {
-        const response = await message.getMessage(conversationId);
-        if (ignore) return;
-        setMess(response.data);
-        setLoadedConversationId(String(conversationId));
-      } catch (error) {
-        if (ignore) return;
-        console.error('Error fetching message:', error);
-        setLoadedConversationId(String(conversationId));
-      } finally {
-        if (ignore) return;
-        setIsLoadingMessages(false);
+    setLoadingMore(true);
+
+    try {
+      const response = await message.getMessage(conversationId, {
+        limit: 15,
+        before: isReset ? null : cursor
+      });
+
+      const newMessages = response.data.items;
+
+      if (!isReset && chatBodyRef.current) {
+        shouldScrollToBottomRef.current = false;
+        scrollSnapshotRef.current = {
+          prevScrollHeight: chatBodyRef.current.scrollHeight,
+          prevScrollTop: chatBodyRef.current.scrollTop
+        };
+      } else {
+        shouldScrollToBottomRef.current = true;
       }
-    };
 
-    fetchMessage();
-    return () => {
-      ignore = true;
-    };
-  }, [selectedConversation?._id]);
+      setMess(prev => {
+        if (isReset) {
+          // FIX: Chỉ replace khi data về, KHÔNG xóa sớm nữa
+          // => scroll bar giữ nguyên chiều cao cho đến khi data mới render xong
+          return newMessages;
+        }
+
+        const existingIds = new Set(prev.map(m => String(m.messageId)));
+        const uniqueNewMessages = newMessages.filter(m => !existingIds.has(String(m.messageId)));
+        return [...uniqueNewMessages, ...prev];
+      });
+
+      setCursor(response.data.nextCursor);
+      setHasMore(response.data.hasMore);
+      setLoadedConversationId(String(conversationId));
+      displayedConversationIdRef.current = String(conversationId);
+    } catch (error) {
+      console.error('Error fetching message:', error);
+    } finally {
+      setIsLoadingMessages(false);
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
-    if (!selectedConversation?._id) return;
+    const conversationId = selectedConversation?._id;
+    if (!conversationId) return;
+
+    // FIX: KHÔNG gọi setMess([]) ở đây nữa!
+    // Giữ nguyên mess cũ → scroll bar không bị collapse → không bị nhảy
+    // Tin nhắn cũ sẽ bị ẩn bằng opacity trong lúc chờ, và replace khi data về
+    setHasMore(true);
+    setCursor(null);
+    setLoadedConversationId(null);
+    shouldScrollToBottomRef.current = true;
+
+    fetchMessage(conversationId, true);
 
     const onReceive = (payload) => {
       onMessageEvent?.({
@@ -111,7 +146,7 @@ const ConversationView = ({
         senderId: payload.form,
         content: payload.text,
         createdAt: new Date().toISOString(),
-      })
+      });
       if (String(payload.conversationId) !== String(selectedConversation._id)) return;
 
       setMess((prev) => {
@@ -127,27 +162,46 @@ const ConversationView = ({
 
     socket.on("receive-message", onReceive);
     return () => socket.off("receive-message", onReceive);
-    
 
   }, [selectedConversation?._id]);
 
   useLayoutEffect(() => {
-    if(isLoadingMessages) return;
+    if (isLoadingMessages) return;
     const el = chatBodyRef.current;
+    if (!el) return;
+
     const id = selectedConversation?._id;
-    if (!el || !id) return;
+    if (!id) return;
     if (String(loadedConversationId) !== String(id)) return;
 
-    el.scrollTop = el.scrollHeight;
-  }, [selectedConversation?._id, mess.length, isLoadingMessages, loadedConversationId]);
+    if (shouldScrollToBottomRef.current) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    } else {
+      const { prevScrollHeight, prevScrollTop } = scrollSnapshotRef.current;
+      if (prevScrollHeight > 0 && mess.length > 0) {
+        const newScrollHeight = el.scrollHeight;
+        el.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+      }
+    }
+  }, [mess, isLoadingMessages, loadedConversationId, selectedConversation?._id]);
 
-  if (!selectedConversation?._id) {
-    return (
-      <div className="flex h-full items-center justify-center bg-white text-sm text-muted-foreground">
-        Chon mot cuoc tro chuyen
-      </div>
+  useEffect(() => {
+    if (!loadRef.current || !selectedConversation?._id || mess.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !isLoadingMessages) {
+          fetchMessage(selectedConversation._id, false);
+        }
+      },
+      { threshold: 0.5 }
     );
-  }
+
+    observer.observe(loadRef.current);
+    return () => observer.disconnect();
+  }, [selectedConversation?._id, cursor, hasMore, loadingMore, isLoadingMessages]);
 
   const otherMember =
     selectedConversation?.members?.find(
@@ -157,10 +211,10 @@ const ConversationView = ({
   const thisMember =
     selectedConversation?.members?.find(
       (member) => String(member.userId) === String(currentUser?._id)
-    ); 
+    );
   const displayName = otherMember?.fullname || 'Nguoi dung';
   const userName = thisMember?.fullname || 'Nguoi dung';
-  const conversationId = selectedConversation._id;
+  const conversationId = selectedConversation?._id;
 
   const handleSendMess = async (data) => {
     try {
@@ -171,13 +225,13 @@ const ConversationView = ({
       });
 
       reset();
-
+      shouldScrollToBottomRef.current = true;
       setMess((prev) => [
         ...prev,
         {
           messageId: res.data._id,
           senderId: currentUser._id,
-          name: userName|| "Nguoi dung",
+          name: userName || "Nguoi dung",
           content: data.content
         }
       ]);
@@ -187,7 +241,7 @@ const ConversationView = ({
         senderId: currentUser._id,
         content: data.content,
         createdAt: new Date().toISOString(),
-      })
+      });
 
       socket.emit("send-message", {
         from: String(currentUser._id),
@@ -195,7 +249,7 @@ const ConversationView = ({
         text: data.content,
         conversationId: String(conversationId),
         messageId: String(res.data._id),
-        name: userName||  "Nguoi dung"
+        name: userName || "Nguoi dung"
       });
 
     } catch (error) {
@@ -203,8 +257,12 @@ const ConversationView = ({
     }
   };
 
-  
-
+  // FIX: Tính toán xem tin nhắn đang hiển thị có phải của conversation hiện tại không
+  // Nếu không phải → ẩn bằng opacity để tránh hiện tin nhắn sai người
+  const isShowingStaleMessages =
+    isLoadingMessages &&
+    displayedConversationIdRef.current !== null &&
+    displayedConversationIdRef.current !== String(selectedConversation?._id);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -242,7 +300,7 @@ const ConversationView = ({
             <div className="flex items-center justify-center shrink-0">
               <Search />
             </div>
-            <button 
+            <button
               className="cursor-pointer flex items-center justify-center shrink-0"
               onClick={() => onOpenRighPage(!isOpenRighPage)}
             >
@@ -252,10 +310,40 @@ const ConversationView = ({
         </div>
       </div>
 
-      <div ref={chatBodyRef} className="flex-1 min-h-0 overflow-y-auto p-4">
-        {isLoadingMessages && (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Dang tai tin nhan...
+      {/*
+        FIX KEY:
+        - KHÔNG dùng setMess([]) trước khi fetch → scroll bar không bị collapse
+        - Dùng opacity để ẩn tin nhắn cũ trong lúc load (không xóa DOM)
+        - Khi data về → setMess(newMessages) → opacity: 1 → không nhảy
+      */}
+      <div
+        ref={chatBodyRef}
+        className="relative flex-1 min-h-0 overflow-y-auto p-4"
+        style={{
+          overflowAnchor: 'none',
+          // Ẩn tin nhắn cũ khi đang load conversation mới (nhưng giữ scroll height)
+          opacity: isShowingStaleMessages ? 0 : 1,
+          transition: isShowingStaleMessages ? 'none' : 'opacity 0.1s ease',
+        }}
+      >
+        <div ref={loadRef} className="h-1" />
+
+        {!hasMore && mess.length > 0 && (
+          <div className="text-center text-xs text-gray-400 py-2">
+            Đã tải hết
+          </div>
+        )}
+
+        {loadingMore && !isLoadingMessages && mess.length > 0 && (
+          <div className="text-center text-sm text-gray-500 py-2">
+            Đang tải tin nhắn cũ...
+          </div>
+        )}
+
+        {/* Loading spinner chỉ hiện khi chưa có mess nào (lần đầu tiên, chưa có stale messages) */}
+        {isLoadingMessages && !isShowingStaleMessages && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+            <div className="animate-pulse text-muted-foreground">Đang tải tin nhắn...</div>
           </div>
         )}
 
@@ -270,7 +358,7 @@ const ConversationView = ({
                 </div>
               )}
               <div
-                className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap${
+                className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap ${
                   isMe
                     ? 'rounded-tr-none bg-[#3b5bdb] text-white'
                     : 'rounded-tl-none bg-[#f1f3f5] text-[#1f2328]'
@@ -303,7 +391,6 @@ const ConversationView = ({
                 type="button"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf2ff] text-[#3b5bdb]"
                 onClick={() => handleSendMess({ content: LIKE_EMOJI })}
-
               >
                 <ThumbsUp className='text-yellow-500' fill="#d2dd10" size={20} />
               </button>

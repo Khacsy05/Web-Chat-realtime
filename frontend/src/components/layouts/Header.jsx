@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import {  useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthStore from "@/stores/useAuthStore";
 import Profile from "@/pages/user/profile/profile";
@@ -6,7 +6,6 @@ import Modal from "../Modal";
 export function Header({ onNavigate   }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const [avatarError, setAvatarError] = useState(false);
@@ -15,7 +14,22 @@ export function Header({ onNavigate   }) {
   const avatarSrc = user?.avatar
     ? (user.avatar.startsWith("http") ? user.avatar : `http://localhost:5000${user.avatar}`)
     : "http://localhost:5000/uploads/default-avatar.png";
-
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      // Khi bấm vào bất cứ đâu trên màn hình, ta đóng dropdown
+      if (dropOpen) {
+        setDropOpen(false);
+      }
+    };
+  
+    // Đăng ký sự kiện click toàn cục
+    window.addEventListener('click', handleGlobalClick);
+  
+    return () => {
+      // Xóa sự kiện khi thoát trang
+      window.removeEventListener('click', handleGlobalClick);
+    };
+  }, [dropOpen]);
   return (
     <div>
       <header className="bg-[#3b4288] text-white shadow-md">
@@ -41,7 +55,9 @@ export function Header({ onNavigate   }) {
 
             <div className="relative">
               <button
-                onClick={() => setDropOpen(!dropOpen)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setDropOpen(!dropOpen)}}
                 className="flex items-center gap-2 hover:bg-white/10 px-3 py-2 rounded-lg transition"
               >
                 {avatarError ? (

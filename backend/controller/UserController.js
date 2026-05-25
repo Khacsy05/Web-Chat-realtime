@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
 import { io } from "../server.js";
 import { onlineUsers } from "../config/socketStore.js";
+import mongoose from "mongoose";
 
 
 export const friendRequest = async (req,res) => {
@@ -74,22 +75,71 @@ export const friendRequest = async (req,res) => {
     }
 }
 
+export const getAllUser = async (req,res) => {
+    try {
+        const user = await User.findOne({ userId: req.user._id });
+        if(!user){
+            return res.status(400).json({
+                message: "User không tồn tại"
+            })
+        }
+        const myId = user._id;
+        const relations = await FriendRequest.find({
+            $or: [{ from: myId }, { to: myId }]
+        });
+        const excludeIds = [myId];
+        relations.forEach(req => {
+            if(req.from.toString() === myId.toString()){
+                excludeIds.push(req.to)
+            }
+            else{
+                excludeIds.push(req.from) 
+            }
+        })
+
+        const users = await User.find({
+            _id: {$nin:excludeIds}
+        })
+        res.status(200).json(users)
+    } catch (error) {
+        console.error("Lỗi khi lấy danh sách user:", error);
+        res.status(500).json({ message: "Lỗi hệ thống" });
+    }
+}
+
 export const getAllFriend = async (req,res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
         if(!user){
             return res.status(400).json({
-                message : "Khong co sinh vien"
+                message: "User không tồn tại"
             })
         }
-        const relations = await FriendRequest.find({
-            status: "accepted",
-            $or: [{from: user._id} , {to: user._id}]
-        }).populate("from to","fullname avatar")
 
+        const limit = Number(req.query.limit) || 20;
+        const after = req.query.after; // cursor
+
+        const query = {
+            status: "accepted",
+            $or: [{ from: user._id }, { to: user._id }],
+        };
+        const dataQuery = { ...query };
+        if (after) {
+            dataQuery._id = { $lt: after }; // cursor pagination
+        }
+
+        const total = await FriendRequest.countDocuments(query);
+        const relations = await FriendRequest.find(dataQuery)
+        .sort({ _id: -1 })
+        .limit(limit + 1)
+        .populate("from to","fullname avatar")
+
+         const hasMore = relations.length > limit;
+        if (hasMore) relations.pop();
+        
         if(!relations){
             return res.status(400).json({
-                message : "Khong co sinh vien"
+                message: "User không tồn tại"
             })
         }
 
@@ -99,28 +149,47 @@ export const getAllFriend = async (req,res) => {
             : r.from
         })
 
-        res.status(200).json(friends)
+        res.status(200).json({
+            items: friends,
+            hasMore,
+            nextCursor: relations.at(-1)?._id ?? null,
+            total
+        })
     } catch (error) {
         console.error("Loi khi goi getAllFriend",error);
         res.status(500).json({message: "Loi he thong"})
     }
 }
 
-export const getFriendRequest = async(req,res) => {
+export const getReceivedRequest = async(req,res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
         const request = await FriendRequest.find({
             to: user._id,
             status: "pending"
-        }).populate("from","fullname email")
+        }).populate("from","fullname email avatar")
         res.json(request);
     } catch (error) {
-        console.error("Loi khi goi getAllFriend",error);
+        console.error("Loi khi goi getReceivedFriend",error);
         res.status(500).json({message: "Loi he thong"})
     }
 }
 
-export const acceptFriend = async (req, res) => {
+export const getSentRequest = async(req,res) => {
+    try {
+        const user = await User.findOne({ userId: req.user._id });
+        const request = await FriendRequest.find({
+            from: user._id,
+            status: "pending"
+        }).populate("to","fullname email avatar")
+        res.json(request);
+    } catch (error) {
+        console.error("Loi khi goi getSentFriend",error);
+        res.status(500).json({message: "Loi he thong"})
+    }
+}
+
+export const acceptRequest = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
         const {requestId} = req.body;
@@ -135,10 +204,10 @@ export const acceptFriend = async (req, res) => {
         request.status = "accepted";
         await request.save();
 
-        const socketId = onlineUsers.get(from.toString());
+        const socketId = onlineUsers.get(request.from.toString());
         if (socketId) {
             io.to(socketId).emit("accept_friend", {
-                to,
+                to: request.to,
                 message: "Da chap nhan ket ban"
             });
         }
@@ -151,7 +220,7 @@ export const acceptFriend = async (req, res) => {
     }
 }
 
-export const rejectFriend = async (req, res) => {
+export const rejectRequest = async (req, res) => {
   try {
     const user = await User.findOne({ userId: req.user._id });
     const { requestId } = req.body;
@@ -166,13 +235,13 @@ export const rejectFriend = async (req, res) => {
       return res.status(403).json({ message: "Không có quyền" });
     }
 
-    request.status = "rejected";
-    await request.save();
+    await request.deleteOne();
+    
 
-    const socketId = onlineUsers.get(from.toString());
+    const socketId = onlineUsers.get(request.from.toString());
         if (socketId) {
             io.to(socketId).emit("reject_friend", {
-                to,
+                to: request.to,
                 message: "Da tu choi ket ban"
             });
         }
@@ -202,7 +271,7 @@ export const cancelRequest = async (req, res) => {
 
     await request.deleteOne();
 
-    const socketId = onlineUsers.get(to.toString());
+    const socketId = onlineUsers.get(request.to.toString());
         if (socketId) {
             io.to(socketId).emit("cancel_friend", {
                 message: "Lời mời kết bạn đã bị huỷ"
@@ -243,3 +312,69 @@ export const updateAvatar = async (req, res) => {
     res.status(500).json(err.message);
   }
 };
+
+export const unFriend = async (req, res) => {
+    try {
+        const user = await User.findOne({ userId: req.user._id });
+        const { friendId } = req.body; // Front-end truyền ID của người cần hủy kết bạn lên
+
+        if (!friendId) {
+        return res.status(400).json({ message: "Thiếu ID người bạn cần hủy kết bạn" });
+        }
+
+        // Tìm bản ghi kết bạn đã "accepted" giữa 2 người này (không quan trọng ai gửi trước)
+        const request = await FriendRequest.findOne({
+        status: "accepted",
+        $or: [
+            { from: user._id, to: friendId },
+            { from: friendId, to: user._id }
+        ]
+        });
+
+        if (!request) {
+        return res.status(404).json({ message: "Không tìm thấy mối quan hệ bạn bè hợp lệ" });
+        }
+
+        // Thực hiện xóa mối quan hệ kết bạn khỏi Database
+        await request.deleteOne();
+
+        // Xác định ai là người bị hủy để bắn Socket thông báo Realtime
+        const targetId = request.from.toString() === user._id.toString() 
+        ? request.to.toString() 
+        : request.from.toString();
+
+        const socketId = onlineUsers.get(targetId);
+        if (socketId) {
+        io.to(socketId).emit("unfriend_notification", {
+            unfriendedBy: user._id,
+            message: `${user.fullname} đã hủy kết bạn với bạn`
+        });
+        }
+
+        res.status(200).json({ message: "Đã hủy kết bạn thành công" });
+
+    } catch (err) {
+        console.error("Lỗi khi gọi unfriend:", err);
+        res.status(500).json({ message: "Lỗi hệ thống" });
+    }
+};
+
+export const getProfileUser = async (req, res) => {
+    try {
+        const { userId } = req.body
+        if (!userId) {
+            return res.status(400).json({ message: "Thiếu thông tin ID" });
+        }
+        const user = await User.findById(userId);
+        if(!user){
+            return res.status(404).json({
+                message: "User khong ton tai"
+            })
+        }
+        res.json({
+            profile: user,
+        });
+    } catch (error) {
+        res.status(500).json(error.message);
+    }
+}
