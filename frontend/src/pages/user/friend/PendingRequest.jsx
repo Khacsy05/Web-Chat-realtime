@@ -2,7 +2,7 @@ import user from '@/service/user';
 import React, { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from "react-router-dom";
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react'; // Dùng icon cảnh báo cho popup
+import { AlertTriangle, X } from 'lucide-react'; // Dùng icon cảnh báo cho popup
 import Modal from '@/components/Modal';
 import ProfileFriend from './ProfileFriend';
 
@@ -14,7 +14,9 @@ const PendingRequest = () => {
   
   const [sentRequests, setSentRequests] = useState([]);
   const [receivedRequests, setReceivedRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingReceived, setLoadingReceived] = useState(true);
+  const [loadingSent, setLoadingSent] = useState(true);
+
   const [openProfile, setOpenProfile] = useState(null);
   // --- STATE QUẢN LÝ POPUP XÁC NHẬN ---
   const [confirmModal, setConfirmModal] = useState({
@@ -35,22 +37,16 @@ const PendingRequest = () => {
   const showBackButton = isNarrowFromLayout ?? isNarrowScreen;
 
   const fetchAllRequests = async () => {
-    try {
-      setLoading(true);
-      const [receivedRes, sentRes] = await Promise.all([
-        user.receivedRequest(),
-        user.sentRequest()
-      ]);
-      setReceivedRequests(receivedRes.data || []);
-      setSentRequests(sentRes.data || []);
-      console.log(receivedRes.data)
-      console.log(sentRes.data)
+    user.receivedRequest()
+      .then(res => setReceivedRequests(res.data || []))
+      .catch(err => console.error('Lỗi tải lời mời nhận được:', err))
+      .finally(() => setLoadingReceived(false));
 
-    } catch (error) {
-      console.error('Lỗi khi tải danh sách lời mời:', error);
-    } finally {
-      setLoading(false);
-    }
+    // Gọi API lời mời đã gửi
+    user.sentRequest()
+      .then(res => setSentRequests(res.data || []))
+      .catch(err => console.error('Lỗi tải lời mời đã gửi:', err))
+      .finally(() => setLoadingSent(false));
   };
 
   useEffect(() => {
@@ -122,9 +118,6 @@ const PendingRequest = () => {
     setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
 
-  if (loading) {
-    return <div className="p-6 text-center text-sm text-gray-500">Đang tải dữ liệu...</div>;
-  }
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-[#f0f2f5] relative">
@@ -276,9 +269,15 @@ const PendingRequest = () => {
           {/* Khung nội dung Popup */}
           <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all border border-gray-100 scale-in-center">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
-                <AlertTriangle size={20} />
-              </div>
+              <button
+                type="button"
+                onClick={closeConfirmDialog}
+                className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                aria-label="Đóng popup"
+              >
+                {/* Đảm bảo bạn đã import { X } from 'lucide-react' ở đầu file */}
+                <X size={18} strokeWidth={2.5} />
+              </button>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-gray-900">
                   {confirmModal.title}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import ConversationView from './ConversationView';
 import DetailsPanel from './DetailsPanel';
 
-const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack }) => {
+const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelectConversation}) => {
   const [isOpenRightPage, setIsOpenRightPage] = useState(
     () => typeof window !== 'undefined' && window.innerWidth >= 1024
   );
@@ -44,7 +44,11 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack }) => {
 
       {isOpenRightPage && (
         <aside className="hidden min-h-0 w-[340px] shrink-0 border-l bg-white lg:block">
-          <DetailsPanel />
+          <DetailsPanel 
+            selectedConversation={selectedConversation} 
+            onSelectConversation={onSelectConversation}
+            onMobileBack={onMobileBack}
+          />
         </aside>
       )}
 
@@ -58,7 +62,12 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex-1 overflow-y-auto">
-              <DetailsPanel />
+              <DetailsPanel 
+                selectedConversation={selectedConversation} 
+                onSelectConversation={onSelectConversation}
+                onMobileBack={onMobileBack}
+                
+              />
             </div>
           </div>
         </div>

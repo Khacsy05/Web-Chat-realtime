@@ -132,6 +132,23 @@ const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent
     });
   }, [lastMessageEvent]);
 
+
+  // Thêm useEffect này vào trong ChatList của bạn
+  useEffect(() => {
+  const handleConversationDeleted = (deletedId) => {
+    const idToCompare = String(deletedId);
+    
+    // Xóa hội thoại khỏi danh sách hiển thị trên UI ngay lập tức
+    setConversation((prev) => prev.filter(c => String(c._id) !== idToCompare));
+    
+    if (selectedConversation && String(selectedConversation._id) === idToCompare) {
+      onSelectConversation(null); 
+    }
+  };
+
+  socket.on("conversation-deleted", handleConversationDeleted);
+  return () => socket.off("conversation-deleted", handleConversationDeleted);
+}, [selectedConversation, onSelectConversation]);
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
 

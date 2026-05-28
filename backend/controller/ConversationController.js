@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import Conversation from "../models/Conversation.js";
 import User from "../models/User.js";
+import Message from "../models/Message.js";
+import { io } from "../server.js";
+import { onlineUsers } from "../config/socketStore.js";
+
 
 const buildParticipantKey = (idA, idB) =>
     [idA, idB].map((id) => String(id)).sort().join(":");
@@ -98,3 +102,43 @@ export const getUserConversations = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+export const deleteConversation = async (req,res) => {
+    try {
+        const { conversationId } = req.body;
+        if (!conversationId) {
+            return res.status(400).json({message: "Thiếu conversationId rồi bạn ơi!"} );
+        }
+        await Message.deleteMany({ conversationId: conversationId });
+        const deletedChat = await Conversation.findByIdAndDelete(conversationId);
+        if (!deletedChat) {
+            return res.status(404).json({ 
+                message: "Không tìm thấy cuộc trò chuyện này hoặc đã bị xóa trước đó." 
+            });
+        }
+        if (deletedChat) {
+            deletedChat.members.forEach((member) => {
+        
+            // 2. Lấy socketId của từng thành viên từ Map onlineUsers đã lưu ở server.js
+            const userSocketId = onlineUsers.get(String(member.userId));
+            
+            // 3. Nếu người đó đang online (có socketId), ta chỉ bắn tín hiệu riêng cho họ
+            if (userSocketId) {
+                // Gửi thẳng chuỗi conversationId luôn cho gọn theo ý bạn ở trên nhé
+                io.to(userSocketId).emit("conversation-deleted", conversationId); 
+            }
+            io.emit("conversation-deleted", conversationId);
+        });
+        }
+        // 5. Trả về phản hồi thành công cho phía Frontend
+        return res.status(200).json({
+            message: "Đã xóa vĩnh viễn toàn bộ tin nhắn và cuộc trò chuyện thành công!"
+        });
+    } catch (error) {
+        console.error("Lỗi khi xóa cuộc trò chuyện:", error);
+        return res.status(500).json({ 
+            success: false, 
+            message: "Lỗi hệ thống, không thể xóa cuộc trò chuyện.",
+            error: error.message 
+        });
+    }
+}

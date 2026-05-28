@@ -49,16 +49,14 @@ io.on("connection", (socket) => {
     console.log("🟢 User online:", userId);
   });
 
-  socket.on("send-message", ({ from, to, text, conversationId, messageId, name }) => {
+  socket.on("send-message", ({ from, to, text, conversationId, messageId, name,createdAt }) => {
     const receiverSocket = onlineUsers.get(String(to));
     if (receiverSocket) {
       io.to(receiverSocket).emit("receive-message", {
-        from, text, conversationId, messageId, name
+        from, text, conversationId, messageId, name, createdAt
       });
     }
   });
-
-  
 });
 
 

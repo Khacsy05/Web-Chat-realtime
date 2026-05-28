@@ -31,16 +31,7 @@ const message = {
             throw error.response || { message: "Loi gui tin nhan" };
         }
     },
-    createOrGetConversation: async (receiverId) => {
-        try {
-            const response = await api.post("/conversation/createOrGetConversation", {
-                receiverId,
-            });
-            return response;
-        } catch (error) {
-            throw error.response || { message: "Loi tao hoac lay cuoc tro chuyen" };
-        }
-    }
+
 
 }
 

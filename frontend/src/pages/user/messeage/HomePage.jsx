@@ -23,7 +23,10 @@ const HomePage = () => {
   const handleMobileBackFromChat = () => {
     setMobileShowChat(false);
   };
-
+  const handleResetConversation = () => {
+    setSelectedConversation(null);
+    setMobileShowChat(false); // Đưa mobile quay trở về danh sách ChatList
+  };
   useEffect(() => {
     const mq = window.matchMedia(`(min-width: ${MD_PX}px)`);
     const onChange = () => {
@@ -63,6 +66,7 @@ const HomePage = () => {
             selectedConversation={selectedConversation}
             onMessageEvent={handleMessageEvent}
             onMobileBack={handleMobileBackFromChat}
+            onSelectConversation={handleResetConversation}
           />
         </div>
       ) : (
