@@ -65,7 +65,8 @@ export const getMessages = async (req, res) => {
         messageId: m._id,
         senderId : m.sender.userId,
         name: m.sender.fullname,
-        content: m.content
+        content: m.content,
+        createdAt: m.createdAt
     }));
 
     res.json({

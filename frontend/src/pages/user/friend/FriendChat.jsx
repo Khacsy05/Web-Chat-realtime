@@ -1,12 +1,14 @@
-import { useParams, useOutletContext } from "react-router-dom";
+import { useParams, useOutletContext, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import ChatPanel from "../messeage/ChatPanel";
-import message from "@/service/message";
+import conversation from "@/service/conversation";
 
 const FriendChat = () => {
   const { friendId } = useParams();
   const { openFriendSidebar } = useOutletContext() ?? {};
-  const [conversation, setConversation] = useState(null);
+  const {openFriendContent} = useOutletContext() ?? {};
+  const [conversations, setConversation] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!friendId) return;
@@ -15,7 +17,7 @@ const FriendChat = () => {
 
     const load = async () => {
       try {
-        const res = await message.createOrGetConversation(friendId);
+        const res = await conversation.createOrGetConversation(friendId);
         if (!cancelled) {
           setConversation(res.data);
         }
@@ -37,12 +39,28 @@ const FriendChat = () => {
   const handleMobileBack = () => {
     openFriendSidebar?.();
   };
+  // Trong file FriendChat.jsx
 
+  const handleResetAfterDelete = () => {
+    setConversation(null);
+
+    // Kiểm tra nếu là màn hình nhỏ (thường là dưới 1024px theo logic ChatPanel của bạn)
+    if (window.innerWidth < 1024) {
+      // 📱 Hành động cho Mobile: Mở sidebar
+      openFriendSidebar?.();
+    } else {
+      // 💻 Hành động cho Desktop: Chuyển trang
+      navigate("/user/friend/allFriend");
+    }
+  };
+  
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col">
       <ChatPanel
-        selectedConversation={conversation}
+        selectedConversation={conversations}
         onMobileBack={handleMobileBack}
+        onSelectConversation={handleResetAfterDelete}
+        
       />
     </div>
   );

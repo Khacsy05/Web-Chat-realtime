@@ -155,7 +155,8 @@ const ConversationView = ({
           messageId: payload.messageId,
           senderId: payload.from,
           name: payload.name ?? "Nguoi dung",
-          content: payload.text
+          content: payload.text,
+          createdAt: payload.createdAt || new Date().toISOString()
         }];
       });
     };
@@ -232,7 +233,8 @@ const ConversationView = ({
           messageId: res.data._id,
           senderId: currentUser._id,
           name: userName || "Nguoi dung",
-          content: data.content
+          content: data.content,
+          createdAt: res.data.createdAt || new Date().toISOString() // Thêm dòng này
         }
       ]);
 
@@ -249,7 +251,8 @@ const ConversationView = ({
         text: data.content,
         conversationId: String(conversationId),
         messageId: String(res.data._id),
-        name: userName || "Nguoi dung"
+        name: userName || "Nguoi dung",
+        createdAt: res.data.createdAt
       });
 
     } catch (error) {
@@ -264,6 +267,34 @@ const ConversationView = ({
     displayedConversationIdRef.current !== null &&
     displayedConversationIdRef.current !== String(selectedConversation?._id);
 
+
+  const formatChatDate = (dateString) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    // Chuyển về định dạng chuỗi để so sánh ngày/tháng/năm đơn giản
+    const isToday = d.toDateString() === today.toDateString();
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+
+    if (isToday) {
+      return `Hôm nay, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    if (isYesterday) {
+      return `Hôm qua, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    // Nếu là các ngày trước đó: Hiển thị Ngày/Tháng và Giờ
+    return `${d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  const formatMessageTime = (dateString) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b bg-white px-3 py-3">
@@ -328,12 +359,6 @@ const ConversationView = ({
       >
         <div ref={loadRef} className="h-1" />
 
-        {!hasMore && mess.length > 0 && (
-          <div className="text-center text-xs text-gray-400 py-2">
-            Đã tải hết
-          </div>
-        )}
-
         {loadingMore && !isLoadingMessages && mess.length > 0 && (
           <div className="text-center text-sm text-gray-500 py-2">
             Đang tải tin nhắn cũ...
@@ -349,25 +374,73 @@ const ConversationView = ({
 
         {!isLoadingMessages && mess.map((item, index) => {
           const isMe = String(item.senderId) === String(currentUser?._id);
+          let showDateDivider = false;
+          let showTimeUnderMessage = false;
+          if (index === 0) {
+            showDateDivider = true;
+          } else {
+            const currentMessageDate = new Date(item.createdAt).toDateString();
+            const previousMessageDate = new Date(mess[index - 1].createdAt).toDateString();
+            
+            // Nếu ngày của tin nhắn này khác ngày của tin nhắn trước đó
+            if (currentMessageDate !== previousMessageDate) {
+              showDateDivider = true;
+            }
+          }
+          
+  
+          if (index === mess.length - 1) {
+            // Nếu là tin nhắn mới nhất/cuối cùng của cuộc trò chuyện -> Hiện giờ
+            showTimeUnderMessage = true;
+          } else {
+            const nextMessage = mess[index + 1];
+            // Nếu thằng nhắn tiếp theo là một người khác -> Tin này là cuối chuỗi -> Hiện giờ
+            const isNextFromDifferentUser = String(nextMessage.senderId) !== String(item.senderId);
+            const currentMessageDate = new Date(item.createdAt).toDateString();
+            const nextMessageDate = new Date(nextMessage.createdAt).toDateString();
+            const isNextDay = currentMessageDate !== nextMessageDate;
+
+            // 2. Hiện giờ nếu người tiếp theo là người khác 
+            // HOẶC tin nhắn tiếp theo đã sang ngày khác (để chốt thời gian cho ngày cũ)
+            if (isNextFromDifferentUser || isNextDay) {
+              showTimeUnderMessage = true;
+            } 
+          }
 
           return (
-            <div key={item.messageId || index} className={`mb-3 flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-              {!isMe && (
-                <div className="mb-1 text-xs text-muted-foreground">
-                  {item.name}
+            <div key={item.messageId || index}>
+
+              {showDateDivider && item.createdAt && (
+                <div className="my-4 flex items-center justify-center">
+                  <span className="rounded-full bg-gray-200/70 px-3 py-1 text-[11px] font-medium text-gray-500 shadow-sm">
+                    {formatChatDate(item.createdAt)}
+                  </span>
                 </div>
               )}
-              <div
-                className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap ${
-                  isMe
-                    ? 'rounded-tr-none bg-[#3b5bdb] text-white'
-                    : 'rounded-tl-none bg-[#f1f3f5] text-[#1f2328]'
-                }`}
-              >
-                {item.content}
+              <div className={`mb-3 flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                {!isMe && (index === 0 || String(mess[index - 1].senderId) !== String(item.senderId)) && (
+                  <div className="mb-1 text-xs text-muted-foreground">
+                    {item.name}
+                  </div>
+                )}
+                <div
+                  className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap ${
+                    isMe
+                      ? 'rounded-tr-none bg-[#3b5bdb] text-white'
+                      : 'rounded-tl-none bg-[#f1f3f5] text-[#1f2328]'
+                  }`}
+                >
+                  {item.content}
+                </div>
+
+                {showTimeUnderMessage && item.createdAt && (
+                <div className="mt-0.5 px-1 text-[10px] text-gray-400 font-normal animate-fade-in">
+                  {formatMessageTime(item.createdAt)}
+                </div>
+        )}
               </div>
             </div>
-          );
+            );
         })}
       </div>
 

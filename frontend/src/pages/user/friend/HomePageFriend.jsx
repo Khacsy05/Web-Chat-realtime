@@ -47,6 +47,14 @@ const HomePageFriend = () => {
       setMobileShowOutlet(true);
       return;
     }
+    if (location.pathname.includes('/friend/addFriend')) {
+      setMobileShowOutlet(true);
+      return;
+    }
+    if (location.pathname.includes('/friend/pendingRequest')) {
+      setMobileShowOutlet(true);
+      return;
+    }
 
     setMobileShowOutlet(false);
   }, [isNarrowScreen, location.pathname, location.state?.showFriendContent]);

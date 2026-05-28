@@ -1,6 +1,6 @@
 import user from '@/service/user';
 import { Input } from '@/components/ui/input';
-import { AlertTriangle, ArrowUpDown, ChevronDown, Funnel, MoreHorizontal, Search, Users } from 'lucide-react';
+import { AlertTriangle, ArrowUpDown, ChevronDown, Funnel, MoreHorizontal, Search, Users, X } from 'lucide-react';
 import React, {  useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from 'sonner';
@@ -24,7 +24,7 @@ const AllFriend = () => {
   const [totalFriends, setTotalFriends] = useState(0);
   const [activeDropdownId, setActiveDropdownId] = useState(null);
   const [openProfile, setOpenProfile] = useState(null);
-  const [confirmModal,setConfrirmModal] = useState(null)
+  const [confirmModal,setConfirmModal] = useState(null)
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: 1023px)`);
     const handler = () => setIsNarrowScreen(mq.matches);
@@ -232,7 +232,7 @@ useEffect(() => {
                       className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-gray-50 cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setConfrirmModal(item)
+                        setConfirmModal(item)
                       }}
                     >
                       Xóa bạn bè
@@ -264,15 +264,21 @@ useEffect(() => {
           {/* Lớp nền mờ đen phía sau */}
           <div 
             className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-            onClick={() => (setConfrirmModal(null))} // Bấm ra ngoài rìa tự đóng popup
+            onClick={() => (setConfirmModal(null))} // Bấm ra ngoài rìa tự đóng popup
           />
           
           {/* Khung nội dung Popup */}
           <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all border border-gray-100 scale-in-center">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
-                <AlertTriangle size={20} />
-              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                aria-label="Đóng popup"
+              >
+                {/* Đảm bảo bạn đã import { X } from 'lucide-react' ở đầu file */}
+                <X size={18} strokeWidth={2.5} />
+              </button>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Xác nhận
@@ -288,7 +294,7 @@ useEffect(() => {
               <button
                 type="button"
                 className="h-9 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                onClick={() => (setConfrirmModal(null))}
+                onClick={() => (setConfirmModal(null))}
               >
                 Hủy bỏ
               </button>
@@ -296,7 +302,7 @@ useEffect(() => {
                 type="button"
                 className="h-9 rounded-lg bg-[#0561ff] px-4 text-sm font-medium text-white hover:bg-[#0052db] transition shadow-sm"
                 onClick={() => {
-                 setConfrirmModal(null)
+                 setConfirmModal(null)
                  unFriend(confirmModal._id)
                 }}
               >
