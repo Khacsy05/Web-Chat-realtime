@@ -132,7 +132,7 @@ export const getAllFriend = async (req,res) => {
         const relations = await FriendRequest.find(dataQuery)
         .sort({ _id: -1 })
         .limit(limit + 1)
-        .populate("from to","fullname avatar")
+        .populate("from to")
 
          const hasMore = relations.length > limit;
         if (hasMore) relations.pop();
@@ -167,7 +167,7 @@ export const getReceivedRequest = async(req,res) => {
         const request = await FriendRequest.find({
             to: user._id,
             status: "pending"
-        }).populate("from","fullname email avatar")
+        }).populate("from")
         res.json(request);
     } catch (error) {
         console.error("Loi khi goi getReceivedFriend",error);
@@ -181,7 +181,7 @@ export const getSentRequest = async(req,res) => {
         const request = await FriendRequest.find({
             from: user._id,
             status: "pending"
-        }).populate("to","fullname email avatar")
+        }).populate("to")
         res.json(request);
     } catch (error) {
         console.error("Loi khi goi getSentFriend",error);

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import ConversationView from './ConversationView';
 import DetailsPanel from './DetailsPanel';
+import GroupMembersPanel from './GroupMembersPanel';
 
 const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelectConversation}) => {
   const [isOpenRightPage, setIsOpenRightPage] = useState(
     () => typeof window !== 'undefined' && window.innerWidth >= 1024
   );
-
+  const [rightView, setRightView] = useState("details"); 
   useEffect(() => {
     let lastWidth = window.innerWidth;
 
@@ -25,7 +26,9 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelec
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
+  useEffect(() => {
+    setRightView("details")
+  },[selectedConversation])
   const handleMessageEvent = (payload) => {
     onMessageEvent?.(payload);
   };
@@ -44,11 +47,22 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelec
 
       {isOpenRightPage && (
         <aside className="hidden min-h-0 w-[340px] shrink-0 border-l bg-white lg:block">
-          <DetailsPanel 
-            selectedConversation={selectedConversation} 
-            onSelectConversation={onSelectConversation}
-            onMobileBack={onMobileBack}
-          />
+          {rightView === "details" && (
+            <DetailsPanel
+              selectedConversation={selectedConversation} 
+              onSelectConversation={onSelectConversation}
+              onMobileBack={onMobileBack}
+              onOpenMembers={() => setRightView("members")} // ⭐
+            />
+          )}
+
+          {rightView === "members" && (
+            <GroupMembersPanel
+              conversation={selectedConversation}
+              onBack={() => setRightView("details")}
+            />
+          )}
+
         </aside>
       )}
 
@@ -62,12 +76,21 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelec
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex-1 overflow-y-auto">
-              <DetailsPanel 
-                selectedConversation={selectedConversation} 
-                onSelectConversation={onSelectConversation}
-                onMobileBack={onMobileBack}
-                
-              />
+              {rightView === "details" && (
+                <DetailsPanel
+                  selectedConversation={selectedConversation} 
+                  onSelectConversation={onSelectConversation}
+                  onMobileBack={onMobileBack}
+                  onOpenMembers={() => setRightView("members")} // ⭐
+                />
+              )}
+
+              {rightView === "members" && (
+                <GroupMembersPanel
+                  conversation={selectedConversation}
+                  onBack={() => setRightView("details")}
+                />
+              )}
             </div>
           </div>
         </div>

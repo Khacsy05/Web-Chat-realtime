@@ -17,11 +17,27 @@ const conversationSchema = mongoose.Schema({
         unique: true,
         sparse: true,
     },
-    lastMessage: { type: String, default: "" },
+    lastMessage: 
+    { 
+        type: String, default: "" 
+    },
     lastSenderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null
+    },
+    adminGroup: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null // Nếu là chat 1-1 thì để null
+    },
+    nameGroup: {
+        type: String,
+        default: null
+    },
+    avatar: {
+        type: String,
+        default: null
     }
 },
 {

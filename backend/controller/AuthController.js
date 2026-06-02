@@ -41,7 +41,8 @@ export const login = async (req,res) => {
                 email: user.email,
                 role: user.role,
                 fullname: isUser?.fullname || null,
-                avatar: isUser?.avatar || "/uploads/default-avatar.png"
+                avatar: isUser?.avatar || "/uploads/default-avatar.png",
+                idUser: isUser?._id
             }
             
         })
@@ -56,7 +57,7 @@ export const login = async (req,res) => {
 
 export const register = async (req,res) => {
     try {
-        const {username,email,password,role} = req.body;
+        const {username,email,password,role,fullname} = req.body;
         if(!username || !email || !password){
             return res.status(404).json({
                 message: "Vui lòng cung cấp đầy đủ thông tin"
@@ -77,7 +78,7 @@ export const register = async (req,res) => {
         const newAuth = await auth.save();
         const user = new User({
             userId: newAuth._id,
-            fullname: null,
+            fullname: fullname,
             address: null,
             dateOfBirth: null
         });

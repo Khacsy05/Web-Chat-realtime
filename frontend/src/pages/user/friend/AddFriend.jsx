@@ -288,7 +288,7 @@ const AddFriend = () => {
           onClose={() => setOpenProfile(null)}
           size="md"
         >
-          <ProfileFriend userId={openProfile._id}/>
+          <ProfileFriend initialData={openProfile}/>
         </Modal>
       )}
     </div>

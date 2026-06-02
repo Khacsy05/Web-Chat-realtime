@@ -23,7 +23,7 @@ export const sendMessage = async (req, res) => {
       lastSenderId: sender,
       updatedAt: Date.now()
     });
-
+    
     res.json(message);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -44,7 +44,7 @@ export const getMessages = async (req, res) => {
 
     // 1. ĐỔI THÀNH: Lấy limit + 1 phần tử để kiểm tra xem còn trang tiếp theo hay không
     const messages = await Message.find(query)
-      .populate("sender", "fullname userId avatar")
+      .populate("sender")
       .sort({ _id: -1 })
       .limit(limit + 1);
 
@@ -63,7 +63,7 @@ export const getMessages = async (req, res) => {
 
     const result = messages.map(m => ({
         messageId: m._id,
-        senderId : m.sender.userId,
+        senderId : m.sender._id,
         name: m.sender.fullname,
         content: m.content,
         createdAt: m.createdAt

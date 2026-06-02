@@ -5,11 +5,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import message from '@/service/message';
 import UserCardChat from './UserCardChat';
 import socket from '@/lib/socket';
+import CreateGroup from './CreateGroup';
+import Modal from '@/components/Modal';
 
 const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent }) => {
   const [isSearch, setIsSearch] = useState(false);
   const [tab, setTab] = useState("all");
   const [activeAction, setActiveAction] = useState(null);
+  const [openCreateGroup, setOpenCreateGroup] = useState(false);
   const [conversation, setConversation] = useState([]);
   const [searchValue, setSearchValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +37,7 @@ const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent
 
     try {
       const res = await message.getConversation({
-        limit: 8,
+        limit: 12,
         after: reset ? null : cursorRef.current,
       });
 
@@ -111,6 +114,22 @@ const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent
     return () => socket.off("receive-message", handleReceive);
   }, [fetchConverSation]);
 
+  useEffect(() => {
+    const handleCreate = (payload) => {
+      // Nếu conversation đã có trong list thì chỉ cần cập nhật qua lastMessageEvent
+      // Nếu chưa có (conversation mới) thì mới cần fetch
+      setConversation(prev => {
+        const exists = prev.some(c => String(c._id) === String(payload._id));
+        if (exists) return prev; // lastMessageEvent useEffect sẽ xử lý
+        // Conversation mới hoàn toàn → fetch lại
+        fetchConverSation(true);
+        return prev;
+      }); 
+    };
+
+    socket.on("conversation-createGroup", handleCreate);
+    return () => socket.off("receive-message", handleCreate);
+  }, [fetchConverSation]);
   // Cập nhật last message và đẩy conversation lên đầu
   useEffect(() => {
     if (!lastMessageEvent?.conversationId) return;
@@ -130,25 +149,26 @@ const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent
       next.unshift(updated);
       return next;
     });
-  }, [lastMessageEvent]);
+  }, [lastMessageEvent]); 
 
 
   // Thêm useEffect này vào trong ChatList của bạn
   useEffect(() => {
-  const handleConversationDeleted = (deletedId) => {
-    const idToCompare = String(deletedId);
-    
-    // Xóa hội thoại khỏi danh sách hiển thị trên UI ngay lập tức
-    setConversation((prev) => prev.filter(c => String(c._id) !== idToCompare));
-    
-    if (selectedConversation && String(selectedConversation._id) === idToCompare) {
-      onSelectConversation(null); 
-    }
-  };
+    const handleConversationDeleted = (deletedId) => {
+      const idToCompare = String(deletedId);
+      
+      // Xóa hội thoại khỏi danh sách hiển thị trên UI ngay lập tức
+      setConversation((prev) => prev.filter(c => String(c._id) !== idToCompare));
+      
+      if (selectedConversation && String(selectedConversation._id) === idToCompare) {
+        onSelectConversation(null); 
+      }
+    };
 
-  socket.on("conversation-deleted", handleConversationDeleted);
-  return () => socket.off("conversation-deleted", handleConversationDeleted);
-}, [selectedConversation, onSelectConversation]);
+    socket.on("conversation-deleted", handleConversationDeleted);
+    return () => socket.off("conversation-deleted", handleConversationDeleted);
+  }, [selectedConversation, onSelectConversation]);
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
 
@@ -180,7 +200,10 @@ const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent
               <Button className="bg-white text-black hover:bg-[#ededed]">
                 <UserPlus size={20} />
               </Button>
-              <Button className="bg-white text-black hover:bg-[#ededed] cursor-pointer">
+              <Button 
+                className="bg-white text-black hover:bg-[#ededed] cursor-pointer"
+                onClick = {() => setOpenCreateGroup(true)}
+              >
                 <UsersRound size={20} />
               </Button>
             </div>
@@ -253,8 +276,18 @@ const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent
           </div>
         )}
       </div>
+
+      {openCreateGroup && (
+        <Modal
+          title="Tạo nhóm"
+          onClose={() => setOpenCreateGroup(false)}
+          size="md"
+        >
+          <CreateGroup onClose={() => setOpenCreateGroup(false)}/>
+        </Modal>
+      )}
     </div>
   );
 };
-
+    
 export default ChatList;

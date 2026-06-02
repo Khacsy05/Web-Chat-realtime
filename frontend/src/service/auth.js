@@ -52,7 +52,15 @@ const auth = {
         } catch (error) {
             throw error.response || { message: "Lỗi cap nhap thong tin" };
         }
-    }
+    },
+    register: async (data) => {
+        try {
+            const response = await api.post("/auth/register",data)
+            return response
+        } catch (error) {
+            throw error.response || { message: "Lỗi cap nhap thong tin" };
+        }
+    },
 }
 export default auth
 
