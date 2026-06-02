@@ -1,8 +1,8 @@
 import user from '@/service/user';
 import React, { useEffect, useRef, useState } from 'react';
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, Link } from "react-router-dom"; // Thêm Link nếu cần dùng
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, X } from 'lucide-react'; // Dùng icon cảnh báo cho popup
+import { AlertTriangle, X, User, UserCheck, Mail, ChevronDown, ChevronUp } from 'lucide-react'; // Thêm các icon cần thiết
 import Modal from '@/components/Modal';
 import ProfileFriend from './ProfileFriend';
 
@@ -18,12 +18,17 @@ const PendingRequest = () => {
   const [loadingSent, setLoadingSent] = useState(true);
 
   const [openProfile, setOpenProfile] = useState(null);
+
+  // --- STATE QUẢN LÝ XEM THÊM (GIỐNG ZALO) ---
+  const [showAllReceived, setShowAllReceived] = useState(false);
+  const [showAllSent, setShowAllSent] = useState(false);
+
   // --- STATE QUẢN LÝ POPUP XÁC NHẬN ---
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: "",
     description: "",
-    onConfirm: () => {}, // Hàm sẽ chạy khi người dùng bấm "Đồng ý"
+    onConfirm: () => {}, 
   });
 
   useEffect(() => {
@@ -42,7 +47,6 @@ const PendingRequest = () => {
       .catch(err => console.error('Lỗi tải lời mời nhận được:', err))
       .finally(() => setLoadingReceived(false));
 
-    // Gọi API lời mời đã gửi
     user.sentRequest()
       .then(res => setSentRequests(res.data || []))
       .catch(err => console.error('Lỗi tải lời mời đã gửi:', err))
@@ -53,9 +57,7 @@ const PendingRequest = () => {
     fetchAllRequests();
   }, []);
 
-  // --- CÁC HÀM XỬ LÝ CHỨC NĂNG SAU KHI USER XÁC NHẬN TRÊN POPUP ---
-  
-  // 1. Xử lý Thu hồi (Lời mời đã gửi)
+  // --- CÁC HÀM XỬ LÝ CHỨC NĂNG ---
   const executeCancelRequest = async (idRequest) => {
     try {
       await user.cancelRequest(idRequest);
@@ -65,36 +67,26 @@ const PendingRequest = () => {
     }
   };
 
-  // 2. Xử lý Xác nhận kết bạn (Lời mời nhận được)
   const executeAcceptRequest = async (idRequest) => {
     try {
       await user.acceptRequest(idRequest);
       setReceivedRequests((prev) => prev.filter(item => item._id !== idRequest));
-      console.log("Đã chấp nhận kết bạn:", idRequest);
     } catch (error) {
       console.error("Lỗi khi chấp nhận kết bạn:", error);
     }
   };
 
-  // 3. Xử lý Từ chối/Hủy lời mời (Lời mời nhận được)
   const executeDeclineRequest = async (idRequest) => {
     try {
       await user.rejectRequest(idRequest);
       setReceivedRequests((prev) => prev.filter(item => item._id !== idRequest));
-      console.log("Đã từ chối lời mời:", idRequest);
     } catch (error) {
       console.error("Lỗi khi từ chối lời mời:", error);
     }
   };
 
-  // --- HÀM MỞ POPUP (KÍCH HOẠT KHI BẤM NÚT TRÊN CÁC CARD) ---
   const openConfirmDialog = (type, idRequest, name) => {
-    let config = {
-      isOpen: true,
-      title: "",
-      description: "",
-      onConfirm: () => {}
-    };
+    let config = { isOpen: true, title: "", description: "", onConfirm: () => {} };
 
     if (type === 'cancel') {
       config.title = "Thu hồi lời mời";
@@ -113,11 +105,13 @@ const PendingRequest = () => {
     setConfirmModal(config);
   };
 
-  // Đóng popup
   const closeConfirmDialog = () => {
     setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
 
+  // --- LOGIC LỌC PHẦN TỬ ĐỂ HIỂN THỊ ---
+  const displayedReceived = showAllReceived ? receivedRequests : receivedRequests.slice(0, 3);
+  const displayedSent = showAllSent ? sentRequests : sentRequests.slice(0, 3);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-[#f0f2f5] relative">
@@ -139,7 +133,7 @@ const PendingRequest = () => {
         </div>
       </div>
 
-      {/* BODY CONTAINER SỬ DỤNG SCROLL */}
+      {/* BODY CONTAINER */}
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-6">
         
         {/* KHU VỰC 1: LỜI MỜI NHẬN ĐƯỢC */}
@@ -153,51 +147,67 @@ const PendingRequest = () => {
               <p className="text-[14px] font-medium text-gray-500">Bạn không có lời mời nào</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {receivedRequests.map((item) => {
-                const sender = item.from || {};
-                return (
-                  <div key={item._id} className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
-                    <div className="flex items-start gap-3">
-                      <button
-                        onClick={() => setOpenProfile(sender)}
-                      >
-                        <img
-                          src={`http://localhost:5000${sender.avatar || '/uploads/default-avatar.png'}`}
-                          onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
-                          alt={sender.fullname}
-                          className="size-14 rounded-full object-cover border border-gray-100"
-                        />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="truncate text-[15px] font-semibold text-gray-900 leading-snug">
-                          {sender.fullname || 'Người dùng'}
-                        </h3>
-                        <p className="text-[13px] text-gray-400 mt-0.5">Muốn kết bạn với bạn</p>
-                      </div>                       
-                    </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {displayedReceived.map((item) => {
+                  const sender = item.from || {};
+                  return (
+                    <div key={item._id} className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md animate-fade-in">
+                      <div className="flex items-start gap-3">
+                        <button onClick={() => setOpenProfile(sender)}>
+                          <img
+                            src={`http://localhost:5000${sender.avatar || '/uploads/default-avatar.png'}`}
+                            onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
+                            alt={sender.fullname}
+                            className="size-14 rounded-full object-cover border border-gray-100"
+                          />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="truncate text-[15px] font-semibold text-gray-900 leading-snug">
+                            {sender.fullname || 'Người dùng'}
+                          </h3>
+                          <p className="text-[13px] text-gray-400 mt-0.5">Muốn kết bạn với bạn</p>
+                        </div>                   
+                      </div>
 
-                    <div className="mt-4">
-                      <div className='flex w-full gap-2'>
-                        <Button 
-                          variant="secondary"
-                          className="flex-1 h-9 rounded-lg bg-[#0561ff] text-white hover:bg-[#0052db] font-medium text-[14px]"
-                          onClick={() => openConfirmDialog('accept', item._id, sender.fullname)}
-                        >
-                          Xác nhận
-                        </Button>
-                        <Button 
-                          variant="secondary"
-                          className="flex-1 h-9 rounded-lg bg-[#e4e6eb] text-[#050505] hover:bg-[#d8dadf] font-medium text-[14px]"
-                          onClick={() => openConfirmDialog('decline', item._id, sender.fullname)}
-                        >
-                          Hủy
-                        </Button>
+                      <div className="mt-4">
+                        <div className='flex w-full gap-2'>
+                          <Button 
+                            variant="secondary"
+                            className="flex-1 h-9 rounded-lg bg-[#0561ff] text-white hover:bg-[#0052db] font-medium text-[14px]"
+                            onClick={() => openConfirmDialog('accept', item._id, sender.fullname)}
+                          >
+                            Xác nhận
+                          </Button>
+                          <Button 
+                            variant="secondary"
+                            className="flex-1 h-9 rounded-lg bg-[#e4e6eb] text-[#050505] hover:bg-[#d8dadf] font-medium text-[14px]"
+                            onClick={() => openConfirmDialog('decline', item._id, sender.fullname)}
+                          >
+                            Hủy
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Nút Xem thêm / Thu gọn của phần Nhận được */}
+              {receivedRequests.length > 3 && (
+                <div className="flex justify-center pt-1">
+                  <button
+                    onClick={() => setShowAllReceived(!showAllReceived)}
+                    className="flex items-center gap-1 text-[13px] font-semibold text-[#0561ff] hover:text-[#0052db] transition-colors bg-white px-4 py-1.5 rounded-full shadow-sm border border-gray-100"
+                  >
+                    {showAllReceived ? (
+                      <>Thu gọn <ChevronUp size={16} /></>
+                    ) : (
+                      <>Xem thêm ({receivedRequests.length - 3}) <ChevronDown size={16} /></>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -213,82 +223,82 @@ const PendingRequest = () => {
               Không có lời mời kết bạn nào đã gửi.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sentRequests.map((item) => {
-                const receiver = item.to || {};
-                return (
-                  <div key={item._id} className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
-                    <div className="flex items-start gap-3">
-                      <button
-                        onClick={() => setOpenProfile(receiver)}
-                      >
-                        <img
-                          src={`http://localhost:5000${receiver.avatar || '/uploads/default-avatar.png'}`}
-                          onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
-                          alt={receiver.fullname}
-                          className="size-14 rounded-full object-cover border border-gray-100"
-                        />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="truncate text-[15px] font-semibold text-gray-900 leading-snug">
-                          {receiver.fullname || 'Người dùng'}
-                        </h3>
-                        <p className="text-[13px] text-gray-400 mt-0.5">Bạn đã gửi lời mời</p>
-                      </div>                       
-                    </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {displayedSent.map((item) => {
+                  const receiver = item.to || {};
+                  return (
+                    <div key={item._id} className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md animate-fade-in">
+                      <div className="flex items-start gap-3">
+                        <button onClick={() => setOpenProfile(receiver)}>
+                          <img
+                            src={`http://localhost:5000${receiver.avatar || '/uploads/default-avatar.png'}`}
+                            onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
+                            alt={receiver.fullname}
+                            className="size-14 rounded-full object-cover border border-gray-100"
+                          />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="truncate text-[15px] font-semibold text-gray-900 leading-snug">
+                            {receiver.fullname || 'Người dùng'}
+                          </h3>
+                          <p className="text-[13px] text-gray-400 mt-0.5">Bạn đã gửi lời mời</p>
+                        </div>                       
+                      </div>
 
-                    <div className="mt-4">
-                      <Button 
-                        variant="secondary"
-                        className="w-full h-9 rounded-lg bg-[#e4e6eb] text-[#050505] hover:bg-[#d8dadf] font-medium text-[14px]"
-                        onClick={() => openConfirmDialog('cancel', item._id, receiver.fullname)}
-                      >
-                        Thu hồi lời mời
-                      </Button>
+                      <div className="mt-4">
+                        <Button 
+                          variant="secondary"
+                          className="w-full h-9 rounded-lg bg-[#e4e6eb] text-[#050505] hover:bg-[#d8dadf] font-medium text-[14px]"
+                          onClick={() => openConfirmDialog('cancel', item._id, receiver.fullname)}
+                        >
+                          Thu hồi lời mời
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Nút Xem thêm / Thu gọn của phần Đã gửi */}
+              {sentRequests.length > 3 && (
+                <div className="flex justify-start pt-1">
+                  <button
+                    onClick={() => setShowAllSent(!showAllSent)}
+                    className="flex items-center gap-1 text-[13px] font-semibold text-[#0561ff] hover:text-[#0052db] transition-colors bg-white px-4 py-1.5 rounded-full shadow-sm border border-gray-100"
+                  >
+                    {showAllSent ? (
+                      <>Thu gọn <ChevronUp size={16} /></>
+                    ) : (
+                      <>Xem thêm ({sentRequests.length - 3}) <ChevronDown size={16} /></>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
       </div>
 
-      {/* ======================================================== */}
-      {/* MENU POPUP XÁC NHẬN (CONFIRM DIALOG MODAL) */}
-      {/* ======================================================== */}
+      {/* MODAL XÁC NHẬN */}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-          {/* Lớp nền mờ đen phía sau */}
-          <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-            onClick={closeConfirmDialog} // Bấm ra ngoài rìa tự đóng popup
-          />
-          
-          {/* Khung nội dung Popup */}
-          <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all border border-gray-100 scale-in-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeConfirmDialog} />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+            <button
+              type="button"
+              onClick={closeConfirmDialog}
+              className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            >
+              <X size={18} strokeWidth={2.5} />
+            </button>
             <div className="flex items-start gap-3">
-              <button
-                type="button"
-                onClick={closeConfirmDialog}
-                className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-                aria-label="Đóng popup"
-              >
-                {/* Đảm bảo bạn đã import { X } from 'lucide-react' ở đầu file */}
-                <X size={18} strokeWidth={2.5} />
-              </button>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {confirmModal.title}
-                </h3>
-                <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-                  {confirmModal.description}
-                </p>
+                <h3 className="text-lg font-semibold text-gray-900">{confirmModal.title}</h3>
+                <p className="text-sm text-gray-500 mt-2 leading-relaxed">{confirmModal.description}</p>
               </div>
             </div>
-
-            {/* Các nút bấm hành động của Popup */}
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
@@ -301,8 +311,8 @@ const PendingRequest = () => {
                 type="button"
                 className="h-9 rounded-lg bg-[#0561ff] px-4 text-sm font-medium text-white hover:bg-[#0052db] transition shadow-sm"
                 onClick={() => {
-                  confirmModal.onConfirm(); // Chạy tác vụ đã được nạp sẵn
-                  closeConfirmDialog();     // Thực hiện xong tự đóng popup
+                  confirmModal.onConfirm();
+                  closeConfirmDialog();
                 }}
               >
                 Xác nhận
@@ -312,15 +322,13 @@ const PendingRequest = () => {
         </div>
       )}
 
+      {/* MODAL PROFILE */}
       {openProfile && (
-        <Modal
-          title="Thông tin tài khoản"
-          onClose={() => setOpenProfile(null)}
-          size="md"
-        >
-          <ProfileFriend userId={openProfile._id}/>
+        <Modal title="Thông tin tài khoản" onClose={() => setOpenProfile(null)} size="md">
+          <ProfileFriend initialData={openProfile}/>
         </Modal>       
       )}
+      
     </div>
   );
 };

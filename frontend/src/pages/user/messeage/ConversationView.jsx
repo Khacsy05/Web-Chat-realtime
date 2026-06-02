@@ -8,6 +8,8 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import socket from '@/lib/socket';
+import Modal from '@/components/Modal';
+import ProfileFriend from '../friend/ProfileFriend';
 
 const messSchema = yup.object().shape({
   content: yup.string().required("vui long nhap noi dung"),
@@ -43,7 +45,7 @@ const ConversationView = ({
     () => typeof window !== 'undefined' && window.innerWidth < MD_PX
   );
   const LIKE_EMOJI = "👍";
-
+  const [openProfile, setOpenProfile] = useState(null);
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MD_PX - 1}px)`);
     const handler = () => setIsNarrowScreen(mq.matches);
@@ -55,9 +57,9 @@ const ConversationView = ({
   const showMobileBack = Boolean(onMobileBack && isNarrowScreen && selectedConversation);
 
   useEffect(() => {
-    if (!currentUser?._id) return;
-    socket.emit("join", String(currentUser._id));
-  }, [currentUser?._id]);
+    if (!currentUser?.idUser) return;
+    socket.emit("join", String(currentUser.idUser));
+  }, [currentUser?.idUser]);
 
   const {
     register,
@@ -143,7 +145,7 @@ const ConversationView = ({
     const onReceive = (payload) => {
       onMessageEvent?.({
         conversationId: String(payload.conversationId),
-        senderId: payload.form,
+        senderId: payload.from,
         content: payload.text,
         createdAt: new Date().toISOString(),
       });
@@ -206,14 +208,23 @@ const ConversationView = ({
 
   const otherMember =
     selectedConversation?.members?.find(
-      (member) => String(member.userId) !== String(currentUser?._id)
+      (member) => String(member._id) !== String(currentUser?.idUser)
     ) || selectedConversation?.members?.[0];
 
   const thisMember =
     selectedConversation?.members?.find(
-      (member) => String(member.userId) === String(currentUser?._id)
+      (member) => String(member._id) === String(currentUser?.idUser)
     );
-  const displayName = otherMember?.fullname || 'Nguoi dung';
+  const isGroup = selectedConversation?.isGroup;
+  const members = selectedConversation?.members || [];
+  const totalMembers = members.length;
+  const displayName = isGroup 
+    ? (selectedConversation?.nameGroup || "Nhóm trò chuyện") 
+    : (otherMember?.fullname || 'Người dùng');
+
+  const avatarDisplay = isGroup 
+    ? (`http://localhost:5000${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
+    : (`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`);
   const userName = thisMember?.fullname || 'Nguoi dung';
   const conversationId = selectedConversation?._id;
 
@@ -231,7 +242,7 @@ const ConversationView = ({
         ...prev,
         {
           messageId: res.data._id,
-          senderId: currentUser._id,
+          senderId: currentUser.idUser,
           name: userName || "Nguoi dung",
           content: data.content,
           createdAt: res.data.createdAt || new Date().toISOString() // Thêm dòng này
@@ -240,14 +251,14 @@ const ConversationView = ({
 
       onMessageEvent?.({
         conversationId: String(selectedConversation._id),
-        senderId: currentUser._id,
+        senderId: currentUser.idUser,
         content: data.content,
         createdAt: new Date().toISOString(),
       });
 
       socket.emit("send-message", {
-        from: String(currentUser._id),
-        to: String(receiverId),
+        from: String(currentUser.idUser),
+        members: selectedConversation?.members,
         text: data.content,
         conversationId: String(conversationId),
         messageId: String(res.data._id),
@@ -310,12 +321,53 @@ const ConversationView = ({
                 <ArrowLeft size={22} />
               </button>
             )}
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#dbe4ff] text-[18px] font-semibold text-[#3b5bdb]">
-              <img
-                src={`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`}
-                alt={displayName}
-                className="size-12 rounded-full object-cover"
-              />
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-[18px] font-semibold text-[#3b5bdb]">
+              <button className={`relative size-full ${isGroup ? 'cursor-default' : 'cursor-pointer'}`} onClick={() => {
+                if(isGroup) return;
+                setOpenProfile(otherMember)
+                }}>
+                  {isGroup ? (
+                    selectedConversation?.avatar ? (
+                      <img
+                        src={`http://localhost:5000${selectedConversation.avatar}`}
+                        alt={displayName}
+                        className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
+                      />
+                    )
+                    : (
+                    <div className="relative size-full">
+                      {/* Ảnh thành viên 1 */}
+                      <img 
+                        src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`} 
+                        className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20" 
+                        alt="mem1"
+                      />
+                      {/* Ảnh thành viên 2 */}
+                      <img 
+                        src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`} 
+                        className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10" 
+                        alt="mem2"
+                      />
+                      {/* Ảnh thành viên 3 */}
+                      <img 
+                        src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`} 
+                        className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30" 
+                        alt="mem3"
+                      />
+                      {/* Vòng tròn số lượng */}
+                      <div className="absolute bottom-0 right-0.5 size-7 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
+                        {totalMembers}
+                      </div>
+                    </div>
+                    )
+                  ) : (
+                    <img
+                      src={avatarDisplay}
+                      alt={displayName}
+                      className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
+                    />
+                  )}
+              </button>
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] font-medium text-[#1f2328]">
@@ -373,7 +425,7 @@ const ConversationView = ({
         )}
 
         {!isLoadingMessages && mess.map((item, index) => {
-          const isMe = String(item.senderId) === String(currentUser?._id);
+          const isMe = String(item.senderId) === String(currentUser?.idUser);
           let showDateDivider = false;
           let showTimeUnderMessage = false;
           if (index === 0) {
@@ -471,6 +523,20 @@ const ConversationView = ({
           </div>
         </form>
       </div>
+
+      {openProfile && (
+        <Modal
+          title="Thông tin tài khoản"
+          onClose={() => setOpenProfile(null)}
+          size="md"
+        >
+          {/* Thêm key vào đây để React reset lại hoàn toàn state của ProfileFriend mỗi lần đổi người */}
+          <ProfileFriend 
+            key={openProfile._id} 
+            initialData={openProfile}
+          />
+        </Modal>
+      )}   
     </div>
   );
 };

@@ -20,6 +20,18 @@ const conversation = {
             throw error.response || { message: "Loi tao hoac lay cuoc tro chuyen" };
         }
     },
+    createGroup : async (formData) => {
+        try {
+            const response = await api.post("/conversation/createGroupConversation", formData , {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                }
+            });
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Loi tao nhom" };
+        }
+    },
 }
 
 export default conversation

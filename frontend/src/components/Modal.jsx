@@ -12,12 +12,12 @@ export default function Modal({ title, onClose, children, size = "md" }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
-      <div className={`bg-white w-full ${widths[size]} rounded-lg shadow-2xl max-h-[90vh] flex flex-col`} onClick={(e) => e.stopPropagation()}>
+      <div className={`bg-white w-full ${widths[size]} rounded-lg shadow-2xl max-h-[90vh] flex flex-col overflow-hidden`} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-[#5c60c0] text-white px-5 py-3.5 rounded-t-lg">
           <span className="font-semibold text-base">{title}</span>
           <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded flex items-center justify-center">x</button>
         </div>
-        <div className="overflow-y-auto flex-1 p-6">{children}</div>
+        <div className="flex-1 p-6 min-h-0">{children}</div>
       </div>
     </div>
   );

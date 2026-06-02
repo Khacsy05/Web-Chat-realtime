@@ -31,7 +31,7 @@ export const createOrGetConversation = async (req, res) => {
         let conversation = await Conversation.findOne({
             participantKey,
             isGroup: false,
-        }).populate("members", "fullname userId avatar");
+        }).populate("members");
 
         if (!conversation) {
             try {
@@ -41,8 +41,7 @@ export const createOrGetConversation = async (req, res) => {
                     isGroup: false,
                 });
                 conversation = await conversation.populate(
-                    "members",
-                    "fullname userId avatar"
+                    "members"
                 );
             } catch (error) {
                 // 2 request song song: request sau bị trùng participantKey
@@ -50,7 +49,7 @@ export const createOrGetConversation = async (req, res) => {
                     conversation = await Conversation.findOne({
                         participantKey,
                         isGroup: false,
-                    }).populate("members", "fullname userId avatar");
+                    }).populate("members");
                 } else {
                     throw error;
                 }
@@ -62,6 +61,41 @@ export const createOrGetConversation = async (req, res) => {
         }
 
         res.json(conversation);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const createGroupConversation = async (req,res) => {
+    try {
+        const user = await User.findOne({ userId: req.user._id });
+        if (!user) {
+            return res.status(404).json({ message: "Không tìm thấy người dùng" });
+        }
+        const {nameGroup,members} = req.body
+        let parsedMembers = typeof members === "string" ? JSON.parse(members) : members;
+
+        // Thêm ID của chính người tạo nhóm vào danh sách thành viên nếu trong mảng chưa có
+        if (!parsedMembers.includes(user._id.toString())) {
+            parsedMembers.push(user._id);
+        }
+        let avatarUrl = null; 
+        if (req.file) {
+            avatarUrl = `/uploads/${req.file.filename}`;
+        }
+        const groupData = await Conversation.create({
+            adminGroup: user._id,
+            nameGroup: nameGroup || "Nhóm chưa đặt tên",
+            members: parsedMembers,
+            isGroup: true,
+            avatar: avatarUrl,
+        });
+
+        const newGroup = await Conversation.findById(groupData._id).populate(
+            "members"
+        );
+        io.emit("conversation-createGroup", groupData);
+        res.status(201).json(newGroup);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -82,7 +116,7 @@ export const getUserConversations = async (req, res) => {
             query.updatedAt = { $lt: after };
         }
         const conversations = await Conversation.find(query)
-        .populate("members", "fullname userId avatar")
+        .populate("members")
         .sort({ updatedAt: -1 })
         .limit(limit+1);
 
@@ -119,7 +153,7 @@ export const deleteConversation = async (req,res) => {
             deletedChat.members.forEach((member) => {
         
             // 2. Lấy socketId của từng thành viên từ Map onlineUsers đã lưu ở server.js
-            const userSocketId = onlineUsers.get(String(member.userId));
+            const userSocketId = onlineUsers.get(String(member._id));
             
             // 3. Nếu người đó đang online (có socketId), ta chỉ bắn tín hiệu riêng cho họ
             if (userSocketId) {
@@ -141,4 +175,24 @@ export const deleteConversation = async (req,res) => {
             error: error.message 
         });
     }
-}
+};
+export const removeMember  = async (req,res) => {
+    try {
+        const {conversationId ,memberId } = req.body;
+        const conversation =await Conversation.findByIdAndUpdate(
+            conversationId,
+            {
+                $pull: { members: memberId }
+            },
+            { new: true }
+        ).populate("members");
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy nhóm" });
+    }
+
+    return res.status(200).json(conversation);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+

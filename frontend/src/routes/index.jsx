@@ -35,6 +35,7 @@ const RoleRedirect = () => {
 const LoginPage = lazy(() => import("@/pages/Auth/Login"));
 const ForgotPass = lazy(() => import("@/pages/Auth/ForgotPass"));
 const ResetPass = lazy(() => import("@/pages/Auth/ResetPass"));
+const Register = lazy(() => import("@/pages/Auth/RegisterUser"));
 
 export default function AppRouter() {
   const routes = useRoutes([
@@ -49,6 +50,10 @@ export default function AppRouter() {
     {
       path: "/resetPassword",
       element: <ResetPass />,
+    },
+    {
+      path: "/register",
+      element: <Register />,
     },
     {
       path: "/",

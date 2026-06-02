@@ -49,13 +49,21 @@ io.on("connection", (socket) => {
     console.log("🟢 User online:", userId);
   });
 
-  socket.on("send-message", ({ from, to, text, conversationId, messageId, name,createdAt }) => {
-    const receiverSocket = onlineUsers.get(String(to));
-    if (receiverSocket) {
-      io.to(receiverSocket).emit("receive-message", {
-        from, text, conversationId, messageId, name, createdAt
-      });
+  socket.on("send-message", ({ from, members, text, conversationId, messageId, name,createdAt }) => {
+    if (Array.isArray(members)){
+      members.forEach((member) => {
+      const memberId = typeof member === 'object' ? String( member._id) : String(member);
+        if (memberId !== String(from)) {
+          const receiverSocket = onlineUsers.get(String(memberId));
+          if (receiverSocket) {
+            io.to(receiverSocket).emit("receive-message", {
+              from, text, conversationId, messageId, name, createdAt
+            });
+          }
+        }
+      })
     }
+    
   });
 });
 
