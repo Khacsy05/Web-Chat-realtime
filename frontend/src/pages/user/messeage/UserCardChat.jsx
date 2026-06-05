@@ -2,7 +2,7 @@ import React from 'react';
 import useAuthStore from '@/stores/useAuthStore';
 import { UsersRound } from 'lucide-react';
 
-const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConversation, lastMessageEvent }) => {
+const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConversation }) => {
   const currentUser = useAuthStore((state) => state.user);
 
   return (

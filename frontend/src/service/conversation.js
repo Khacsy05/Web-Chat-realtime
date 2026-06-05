@@ -32,6 +32,29 @@ const conversation = {
             throw error.response || { message: "Loi tao nhom" };
         }
     },
+    removeMember : async (conversationId,memberId,newAdminId) => {
+        try {
+            const response = await api.put("/conversation/removeMember",{
+                conversationId: conversationId,
+                memberId: memberId,
+                newAdminId: newAdminId
+            })
+            return response
+        } catch (error) {
+            throw error.response || { message: "Loi roi nhom" };
+        }
+    },
+    addMember: async (conversationId,memberIds) => {
+        try {
+            const response = await api.put("/conversation/addMember",{
+                conversationId: conversationId,
+                memberIds: memberIds
+            })
+            return response
+        } catch (error) {
+            throw error.response || { message: "Loi roi nhom" };
+        }
+    },
 }
 
 export default conversation
