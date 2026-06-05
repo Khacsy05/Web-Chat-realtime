@@ -153,15 +153,15 @@ export const deleteConversation = async (req,res) => {
             deletedChat.members.forEach((member) => {
         
             // 2. Lấy socketId của từng thành viên từ Map onlineUsers đã lưu ở server.js
-            const userSocketId = onlineUsers.get(String(member._id));
-            
-            // 3. Nếu người đó đang online (có socketId), ta chỉ bắn tín hiệu riêng cho họ
-            if (userSocketId) {
-                // Gửi thẳng chuỗi conversationId luôn cho gọn theo ý bạn ở trên nhé
-                io.to(userSocketId).emit("conversation-deleted", conversationId); 
-            }
-            io.emit("conversation-deleted", conversationId);
-        });
+                const userSocketId = onlineUsers.get(String(member._id));
+                
+                // 3. Nếu người đó đang online (có socketId), ta chỉ bắn tín hiệu riêng cho họ
+                if (userSocketId) {
+                    // Gửi thẳng chuỗi conversationId luôn cho gọn theo ý bạn ở trên nhé
+                    io.to(userSocketId).emit("conversation-deleted", conversationId); 
+                }
+                
+            });
         }
         // 5. Trả về phản hồi thành công cho phía Frontend
         return res.status(200).json({
@@ -176,19 +176,61 @@ export const deleteConversation = async (req,res) => {
         });
     }
 };
-export const removeMember  = async (req,res) => {
-    try {
-        const {conversationId ,memberId } = req.body;
-        const conversation =await Conversation.findByIdAndUpdate(
-            conversationId,
-            {
-                $pull: { members: memberId }
-            },
-            { new: true }
-        ).populate("members");
+export const removeMember = async (req, res) => {
+  try {
+    const { conversationId, memberId, newAdminId } = req.body;
+
+    let conversation = await Conversation.findById(conversationId);
+
     if (!conversation) {
       return res.status(404).json({ message: "Không tìm thấy nhóm" });
     }
+
+    // 1. Nếu admin bị remove → chuyển admin
+    if (conversation.adminGroup.toString() === memberId.toString()) {
+        if (!newAdminId) {
+            return res.status(400).json({
+            message: "Phải chọn trưởng nhóm mới"
+            });
+        }
+        conversation.adminGroup = newAdminId;
+    }
+
+    // 2. Remove member
+    conversation.members = conversation.members.filter(
+      (m) => m._id.toString() !== memberId
+    );
+
+    // 3. Nếu group rỗng hoặc chỉ còn 1 người → xóa group
+    if (conversation.members.length < 1) {
+      await Conversation.findByIdAndDelete(conversationId);
+
+      const kickedSocket = onlineUsers.get(String(memberId));
+      if (kickedSocket) {
+        io.to(kickedSocket).emit("remove-member", conversationId);
+      }
+
+      return res.status(200).json({ deleted: true });
+    }
+
+    // 4. Lưu lại group
+    await conversation.save();
+    await conversation.populate("members");
+
+    // 5. Notify member bị kick
+    const kickedSocket = onlineUsers.get(String(memberId));
+    if (kickedSocket) {
+      io.to(kickedSocket).emit("remove-member", conversationId);
+    }
+
+    // 6. Notify remaining members
+    conversation.members.forEach((member) => {
+      const socketId = onlineUsers.get(String(member._id));
+
+      if (socketId) {
+        io.to(socketId).emit("member-updated", conversation);
+      }
+    });
 
     return res.status(200).json(conversation);
   } catch (error) {
@@ -196,3 +238,38 @@ export const removeMember  = async (req,res) => {
   }
 };
 
+export const addMember = async (req, res) => {
+    try {
+        const { conversationId, memberIds } = req.body;
+
+        const conversation = await Conversation.findByIdAndUpdate(
+        conversationId,
+        {
+            $addToSet: {
+                members: { $each: memberIds } // thêm nhiều user, không trùng
+            }
+        },
+        { new: true }
+        ).populate("members");
+
+        if (!conversation) {
+        return res.status(404).json({ message: "Không tìm thấy nhóm" });
+        }
+
+        // 🔥 socket emit cho TẤT CẢ thành viên trong nhóm
+        conversation.members.forEach(member => {
+        const socketId = onlineUsers.get(String(member._id));
+
+        if (socketId) {
+            io.to(socketId).emit("member-added", {
+            conversationId,
+            members: conversation.members
+            });
+        }
+        });
+
+        return res.status(200).json(conversation);
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+};

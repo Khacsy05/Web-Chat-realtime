@@ -31,7 +31,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelec
   },[selectedConversation])
   const handleMessageEvent = (payload) => {
     onMessageEvent?.(payload);
-  };
+  };  
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
@@ -58,7 +58,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelec
 
           {rightView === "members" && (
             <GroupMembersPanel
-              conversation={selectedConversation}
+              conversations={selectedConversation}
               onBack={() => setRightView("details")}
             />
           )}
@@ -87,7 +87,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelec
 
               {rightView === "members" && (
                 <GroupMembersPanel
-                  conversation={selectedConversation}
+                  conversations={selectedConversation}
                   onBack={() => setRightView("details")}
                 />
               )}

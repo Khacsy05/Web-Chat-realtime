@@ -16,9 +16,12 @@ import {
   Settings,
   Users2,
   StickyNote,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import conversation from '@/service/conversation';
+import { div } from 'framer-motion/client';
+import AddMembersModal from './AddMembersModal';
 
 const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack ,onOpenMembers }) => {
   const currentUser = useAuthStore((state) => state.user);
@@ -26,20 +29,26 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
   // Trạng thái đóng/mở các mục thả xuống (Accordion)
   const [isOpenMedia, setIsOpenMedia] = useState(true);
   const [isOpenFiles, setIsOpenFiles] = useState(true);
-  const [confirmModal, setConfirmModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {}, 
+  });
+
 
   // 🌟 State Accordion riêng cho giao diện Nhóm (Group) giống trong ảnh
   const [isOpenMembers, setIsOpenMembers] = useState(true);
   const [isOpenNewsboard, setIsOpenNewsboard] = useState(true);
-
+  const [openAddMembers, setOpenAddMembers] = useState(false);
   const isGroup = selectedConversation?.isGroup;
   const members = selectedConversation?.members || [];
   const totalMembers = members.length;
-
+  
   const otherMember = members.find(
     (member) => String(member._id) !== String(currentUser?.idUser)
   ) || members[0];
-
+  const userId = currentUser?.idUser;
   const displayName = isGroup 
     ? (selectedConversation?.nameGroup || "Nhóm trò chuyện") 
     : (otherMember?.fullname || 'Người dùng');
@@ -69,7 +78,44 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
       console.error("Lỗi khi thu hồi:", error);
     }
   };
+
+  const handleRemoveMember = async (memberId) => {
+    try {
+      await conversation.removeMember(selectedConversation._id,memberId);
+      if (onSelectConversation) onSelectConversation(null);
+      if (onMobileBack) onMobileBack();
+    } catch (error) {
+      console.error("Lỗi khi roi nhom:", error);
+    }
+  };
   
+
+  const openConfirmDialog = (type,memberId) => {
+    let config = {
+      isOpen: true,
+      title: "",
+      description: "",
+      onConfirm: () => {}
+    };
+
+    if (type === 'deleteConversation') {
+      config.title = "Xác nhận";
+      config.description = `Toàn bộ tin nhắn sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa?`;
+      // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
+      config.onConfirm = () => handleDeleteConversation();
+    } 
+    else if(type === 'removeMember'){
+      config.title = "Xác nhận rời nhóm";
+      config.description = `Bạn sẽ không thể xem lại tin nhắn sau khi rời`;
+      // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
+      config.onConfirm = () => handleRemoveMember(memberId);
+    }
+
+    setConfirmModal(config);
+  };
+  const closeConfirmDialog = () => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+  };
   return (
     <div className="flex h-full w-full flex-col bg-white border-l border-gray-200 select-none overflow-y-auto">
       {/* 1. Header Tiêu đề (Đổi chữ linh hoạt theo ảnh) */}
@@ -154,7 +200,10 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
               <span className="text-[12px] text-gray-600 font-medium leading-tight">Ghim hội thoại</span>
             </button>
 
-            <button className="flex flex-col items-center gap-1.5 text-center group">
+            <button 
+              className="flex flex-col items-center gap-1.5 text-center group"
+              onClick={() => setOpenAddMembers(true)}
+            >
               <div className="flex size-9 items-center justify-center rounded-full bg-[#f1f3f5] text-[#1f2328] transition-colors group-hover:bg-[#e2e6ea]">
                 <UserPlus size={18} />
               </div>
@@ -318,10 +367,11 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
         )}
       </div>
 
+      
       {/* 6. Nút Xóa lịch sử trò chuyện */}
       <div className="mt-auto border-t-[8px] border-[#f4f5f7] flex flex-col text-[14px]">
         <button 
-          onClick={() => setConfirmModal(true)}
+          onClick={() => openConfirmDialog('deleteConversation',null)}
           className="flex items-center gap-3 px-4 py-3.5 text-left hover:bg-red-50/50 transition-colors text-[#e03131]"
         >
           <Trash2 size={19} className="text-[#e03131] stroke-[1.8]" />
@@ -329,23 +379,34 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
         </button>
       </div>
 
+      {isGroup && (
+        <div className="mt-auto border-t-[8px] border-[#f4f5f7] flex flex-col text-[14px]">
+          <button 
+            onClick={() => openConfirmDialog('removeMember',userId)}
+            className="flex items-center gap-3 px-4 py-3.5 text-left hover:bg-red-50/50 transition-colors text-[#e03131]"
+          >
+            <LogOut size={19} className="text-[#e03131] stroke-[1.8]" />
+            <span className="font-medium">Rời nhóm</span>
+          </button>
+        </div>
+      )}
       {/* Confirm Modal giữ nguyên bản của bạn */}
-      {confirmModal && (
+      {confirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setConfirmModal(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeConfirmDialog} />
           <div className="relative w-full max-w-sm transform overflow-hidden rounded-xl bg-white p-6 shadow-xl border border-gray-100 scale-in-center">
             <button
               type="button"
-              onClick={() => setConfirmModal(false)}
+              onClick={closeConfirmDialog}
               className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
             >
               <X size={18} strokeWidth={2.5} />
             </button>
             <div className="flex items-start gap-3">
               <div className="flex-1 min-w-0 pr-6">
-                <h3 className="text-lg font-semibold text-gray-900">Xác nhận</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{confirmModal.title}</h3>
                 <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-                  Toàn bộ tin nhắn sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa?
+                  {confirmModal.description}
                 </p>
               </div>
             </div>
@@ -353,7 +414,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
               <button
                 type="button"
                 className="h-9 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                onClick={() => setConfirmModal(false)}
+                onClick={closeConfirmDialog}
               >
                 Hủy bỏ
               </button>
@@ -361,8 +422,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
                 type="button"
                 className="h-9 rounded-lg bg-[#0561ff] px-4 text-sm font-medium text-white hover:bg-[#0052db] transition shadow-sm"
                 onClick={() => {
-                  setConfirmModal(false);
-                  handleDeleteConversation();
+                  confirmModal.onConfirm();
+                  closeConfirmDialog();
                 }}
               >
                 Xác nhận
@@ -370,6 +431,12 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
             </div>
           </div>
         </div>
+      )}
+      {openAddMembers && (
+        <AddMembersModal
+          conversations={selectedConversation}
+          onClose={() => setOpenAddMembers(false)}
+        />
       )}
     </div>
   );
