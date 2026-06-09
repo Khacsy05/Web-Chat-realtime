@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import useAuthStore from "@/stores/useAuthStore";
 import Profile from "@/pages/user/profile/profile";
 import Modal from "../Modal";
+import socket from "@/lib/socket";
 export function Header({ onNavigate   }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -85,7 +86,11 @@ export function Header({ onNavigate   }) {
                   </button>
                   <div className="border-t border-gray-100" />
                   <button className="w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-500"
-                  onClick={() => navigate("/login")}>Dang xuat</button>
+                  onClick={() => 
+                  {
+                    socket.disconnect();
+                    navigate("/login");
+                  }}>Dang xuat</button>
                 </div>
               )}
             </div>

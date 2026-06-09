@@ -10,6 +10,7 @@ import useAuthStore from '@/stores/useAuthStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Lock, User, Loader2 } from 'lucide-react'; // 🌟 Thêm các icon đẹp
+import socket from '@/lib/socket';
 
 const authSchema = yup.object().shape({
     username: yup.string().required("Vui lòng nhập tên tài khoản"),
@@ -43,6 +44,8 @@ const Login = () => {
         try {
             const respone = await auth.login(data);
             setAuth(respone.data.user, respone.data.token)
+            socket.connect();
+            socket.emit("join", respone.data.user.idUser);
             toast.success("Đăng nhập thành công 🎉")
             navigate('/')
         } catch (error) {

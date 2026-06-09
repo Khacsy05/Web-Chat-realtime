@@ -2,7 +2,7 @@ import React from 'react';
 import useAuthStore from '@/stores/useAuthStore';
 import { UsersRound } from 'lucide-react';
 
-const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConversation }) => {
+const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConversation, onOpenProfile }) => {
   const currentUser = useAuthStore((state) => state.user);
 
   return (
@@ -60,7 +60,7 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-[18px] font-semibold text-[#3b5bdb]">
               <button className={`relative size-full ${isGroup ? 'cursor-default' : 'cursor-pointer'}`} onClick={() => {
                 if(isGroup) return;
-                setOpenProfile(otherMember)
+                onOpenProfile?.(otherMember)
                 }}>
                   {isGroup ? (
                     conversation?.avatar ? (

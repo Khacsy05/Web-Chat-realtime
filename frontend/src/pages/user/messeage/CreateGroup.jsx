@@ -1,10 +1,13 @@
 import useFriendStore from '@/stores/useFriendStore';
+import { toast } from 'sonner';
 import React, { useEffect, useState, useMemo } from 'react';
 import { Camera, Search, X, ChevronRight } from 'lucide-react'; // Cài lucide-react nếu chưa có, hoặc thay bằng icon SVG
 import conversation from '@/service/conversation';
+import useChatStore from '@/stores/useChatStore';
 
 const CreateGroup = ({ onClose }) => {
   const { friends, loading, fetchFriends } = useFriendStore();
+  const setConversations = useChatStore((state) => state.setConversations);
   
   // State quản lý việc nhập liệu và chọn thành viên
   const [groupName, setGroupName] = useState('');
@@ -64,7 +67,17 @@ const CreateGroup = ({ onClose }) => {
       formData.append("members", JSON.stringify(members));
   
       const res = await conversation.createGroup(formData);
+      const newGroup = res?.data;
+
+      if (newGroup?._id) {
+        setConversations((prev) => [
+          newGroup,
+          ...prev.filter((c) => String(c._id) !== String(newGroup._id)),
+        ]);
+      }
+
       toast.success("Tạo nhóm thành công");
+      onClose?.();
     } catch (error) {
       toast.error("Tạo nhóm không thành công");
     }
@@ -178,7 +191,7 @@ const CreateGroup = ({ onClose }) => {
           Hủy
         </button>
         <button 
-          onClick={() =>{ handleCreateGroup(groupAvatar,groupName,selectedIds); onClose()}}
+          onClick={() => handleCreateGroup(groupAvatar,groupName,selectedIds)}
           disabled={selectedIds.length < 2}
           className={`px-5 py-2 text-sm font-semibold rounded transition ${
             selectedIds.length > 1 

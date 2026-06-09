@@ -1,10 +1,12 @@
 import conversation from "@/service/conversation";
 import useFriendStore from "@/stores/useFriendStore";
+import useChatStore from "@/stores/useChatStore";
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const AddMembersModal = ({ conversations, onClose }) => {
   const { friends, loading, fetchFriends } = useFriendStore();
+  const setConversations = useChatStore((state) => state.setConversations);
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,7 +60,18 @@ const AddMembersModal = ({ conversations, onClose }) => {
     try {
       if (!selectedIds.length) return;
 
-      const response =  await conversation.addMember(conversations._id, selectedIds);
+      const response = await conversation.addMember(conversations._id, selectedIds);
+      const updatedConversation = response?.data;
+
+      if (updatedConversation?._id) {
+        setConversations((prev) =>
+          prev.map((item) =>
+            String(item._id) === String(updatedConversation._id)
+              ? updatedConversation
+              : item
+          )
+        );
+      }
 
       onClose();
     } catch (err) {

@@ -9,6 +9,7 @@ import { onlineUsers } from './config/socketStore.js';
 import routerConversation from './Router/routerConversation.js';
 import routerMessage from './Router/routerMessage.js';
 import cors from "cors";
+import User from './models/User.js';
 dotenv.config();
 const app = express();
 app.use(cors({
@@ -35,24 +36,56 @@ const io = new Server(server,{
 
 
 io.on("connection", (socket) => {
-  console.log("🔥 Client connected:", socket.id);
-  socket.on("disconnect", () => {
-  for (let [userId, socketId] of onlineUsers.entries()) {
-      if (socketId === socket.id) {
-        onlineUsers.delete(userId);
-        break;
-      }
-    }
-  });
-  socket.on("join", (userId) => {
+  // ================= ONLINE =================
+  socket.on("join", async (userId) => {
     onlineUsers.set(userId, socket.id);
+    await User.findByIdAndUpdate(userId, {
+      isActive: true,
+      lastActive: new Date(),
+    });
+    socket.broadcast.emit("user-status", {
+      userId,
+      isActive: true,
+    });
     console.log("🟢 User online:", userId);
   });
 
-  socket.on("send-message", ({ from, members, text, conversationId, messageId, name,createdAt }) => {
-    if (Array.isArray(members)){
+  socket.on("request-online-users", () => {
+    socket.emit("online-users", Array.from(onlineUsers.keys()));
+  });
+
+  // ================= ROOMS =================
+  socket.on("join-conversation", (conversationId) => {
+    socket.join(conversationId);
+  });
+
+  socket.on("leave-conversation", (conversationId) => {
+    socket.leave(conversationId);
+  });
+
+  // ================= TYPING =================
+  socket.on("typing", ({ conversationId, userId ,fullname}) => {
+    socket.to(conversationId).emit("typing", {
+      conversationId,
+      userId,
+      fullname,
+    });
+  });
+
+  socket.on("stop-typing", ({ conversationId, userId,fullname }) => {
+    socket.to(conversationId).emit("stop-typing", {
+      conversationId,
+      userId,
+      fullname,
+    });
+  });
+
+  // ================= MESSAGE =================
+  socket.on("send-message", ({ from, members, text, conversationId, messageId, name, createdAt }) => {
+    if (Array.isArray(members)) {
       members.forEach((member) => {
-      const memberId = typeof member === 'object' ? String( member._id) : String(member);
+        const memberId = typeof member === 'object' ? String(member._id) : String(member);
+
         if (memberId !== String(from)) {
           const receiverSocket = onlineUsers.get(String(memberId));
           if (receiverSocket) {
@@ -61,9 +94,33 @@ io.on("connection", (socket) => {
             });
           }
         }
-      })
+      });
     }
-    
+  });
+
+  // ================= DISCONNECT =================
+  socket.on("disconnect", async () => {
+    let offlineUserId = null;
+    for (let [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        offlineUserId = userId;
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
+    if (offlineUserId) {
+      await User.findByIdAndUpdate(offlineUserId, {
+        isActive: false,
+        lastActive: new Date(),
+      });
+
+      socket.broadcast.emit("user-status", {
+        userId: offlineUserId,
+        isActive: false,
+      });
+
+      console.log("🔴 User offline:", offlineUserId);
+    }
   });
 });
 

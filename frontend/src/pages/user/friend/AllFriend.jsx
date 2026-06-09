@@ -4,9 +4,9 @@
   import React, {  useEffect, useRef, useState } from 'react';
   import { useNavigate, useOutletContext } from "react-router-dom";
   import { toast } from 'sonner';
-  import ProfileFriend from './ProfileFriend';
   import Modal from '@/components/Modal';
   import useFriendStore from '@/stores/useFriendStore';
+import ProfileFriend from '../profile/ProfileFriend';
 
   const AllFriend = () => {
     const navigate = useNavigate();

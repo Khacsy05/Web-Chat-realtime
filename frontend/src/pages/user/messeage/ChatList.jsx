@@ -4,7 +4,6 @@ import { ChevronDown, MoreHorizontal, Search, UserPlus, UsersRound } from 'lucid
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import message from '@/service/message';
 import UserCardChat from './UserCardChat';
-import socket from '@/lib/socket';
 import CreateGroup from './CreateGroup';
 import Modal from '@/components/Modal';
 import useChatStore from '@/stores/useChatStore';

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import useAuthStore from '@/stores/useAuthStore';
+import useChatStore from '@/stores/useChatStore';
 import { 
   BellOff, 
   Pin, 
@@ -25,6 +26,7 @@ import AddMembersModal from './AddMembersModal';
 
 const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack ,onOpenMembers }) => {
   const currentUser = useAuthStore((state) => state.user);
+  const setConversations = useChatStore((state) => state.setConversations);
   
   // Trạng thái đóng/mở các mục thả xuống (Accordion)
   const [isOpenMedia, setIsOpenMedia] = useState(true);
@@ -81,7 +83,23 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
 
   const handleRemoveMember = async (memberId) => {
     try {
-      await conversation.removeMember(selectedConversation._id,memberId);
+      const response = await conversation.removeMember(selectedConversation._id,memberId);
+
+      const updatedConversation = response?.data;
+      if (updatedConversation?._id) {
+        setConversations((prev) =>
+          prev.map((item) =>
+            String(item._id) === String(updatedConversation._id)
+              ? updatedConversation
+              : item
+          )
+        );
+      } else if (response?.data?.deleted) {
+        setConversations((prev) =>
+          prev.filter((item) => String(item._id) !== String(selectedConversation._id))
+        );
+      }
+
       if (onSelectConversation) onSelectConversation(null);
       if (onMobileBack) onMobileBack();
     } catch (error) {
