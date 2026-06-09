@@ -27,7 +27,23 @@ const userSchema = new mongoose.Schema({
     avatar: {
         type: String,
         default: "/uploads/default-avatar.png"
-    }
+    },
+    isActive: {
+      type: Boolean,
+      default: false,
+    },
+    lastActive: {
+      type: Date,
+      default: null,
+    },
+    isActive: {
+      type: Boolean,
+      default: false,
+    },
+    lastActive: {
+      type: Date,
+      default: null,
+    },
 }, {
     timestamps: true
 });

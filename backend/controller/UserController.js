@@ -304,7 +304,7 @@ export const updateAvatar = async (req, res) => {
     const updated = await User.findOneAndUpdate(
       { userId: authId },
       { avatar: avatarUrl },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     res.json(updated);
