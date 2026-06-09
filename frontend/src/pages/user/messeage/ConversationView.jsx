@@ -348,7 +348,7 @@ const ConversationView = ({
           messageId: res.data._id,
           senderId: currentUser.idUser,
           name: userName || "Nguoi dung",
-          content: contentToSend,
+          content: data.content,
           createdAt: res.data.createdAt || new Date().toISOString() // Thêm dòng này
         }
       ]);
@@ -356,14 +356,14 @@ const ConversationView = ({
       onMessageEvent?.({
         conversationId: String(selectedConversation._id),
         senderId: currentUser.idUser,
-        content: contentToSend,
+        content: data.content,
         createdAt: new Date().toISOString(),
       });
 
       socket.emit("send-message", {
         from: String(currentUser.idUser),
         members: selectedConversation?.members,
-        text: contentToSend,
+        text: data.content,
         conversationId: String(conversationId),
         messageId: String(res.data._id),
         name: userName || "Nguoi dung",
@@ -371,8 +371,7 @@ const ConversationView = ({
       });
 
     } catch (error) {
-      console.error("Send message failed:", error?.response?.data || error);
-      toast.error(error?.response?.data?.message || "Gui tin nhan that bai");
+      toast.error("Gui tin nhan that bai");
     }
   };
 

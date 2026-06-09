@@ -1,14 +1,11 @@
 import Modal from "@/components/Modal";
-
 import { useState, useEffect } from "react";
 import AddMembersModal from "./AddMembersModal";
 import { MoreHorizontal, X } from "lucide-react";
 import conversation from "@/service/conversation";
-import useChatStore from "@/stores/useChatStore";
 
 const GroupMembersPanel = ({ conversations, onBack }) => {
     const members = conversations.members || [];
-    const setConversations = useChatStore((state) => state.setConversations);
 
     const [openProfile, setOpenProfile] = useState(null);
     const [openAddMembers, setOpenAddMembers] = useState(false);
@@ -29,35 +26,18 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
     const adminId = conversations.adminGroup;
 
     const sortedMembers = [
-        ...members.filter(m => String(m._id) === String(adminId)),
-        ...members.filter(m => String(m._id) !== String(adminId)),
+        ...members.filter(m => m._id === adminId),
+        ...members.filter(m => m._id !== adminId),
     ];
 
     // ================= API =================
     const handleRemoveMember = async (memberId, newAdminId = null) => {
         try {
-            const response = await conversation.removeMember(
+            await conversation.removeMember(
                 conversations._id,
                 memberId,
                 newAdminId
             );
-
-            const updatedConversation = response?.data;
-            if (updatedConversation?._id) {
-                setConversations((prev) =>
-                    prev.map((item) =>
-                        String(item._id) === String(updatedConversation._id)
-                            ? updatedConversation
-                            : item
-                    )
-                );
-            } else if (response?.data?.deleted) {
-                setConversations((prev) =>
-                    prev.filter(
-                        (item) => String(item._id) !== String(conversations._id)
-                    )
-                );
-            }
         } catch (error) {
             console.log(error);
         }
@@ -141,7 +121,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                         <div className="flex-1">
                             <div>{m.fullname}</div>
                             <div className="text-xs text-gray-400">
-                                {String(m._id) === String(adminId) && (
+                               {m._id === adminId && (
                                     <span className="text-xs px-2 py-[2px] rounded bg-blue-100 text-blue-600">
                                         Trưởng nhóm
                                     </span>
@@ -167,7 +147,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                             {openMenuUserId === m._id && (
                                 <div className="absolute right-0 top-7 bg-white border rounded shadow w-36">
 
-                                    {String(m._id) === String(conversations.adminGroup) ? (
+                                    {m._id === conversations.adminGroup ? (
                                         <button
                                             className="w-full text-left p-2"
                                             onClick={() => {

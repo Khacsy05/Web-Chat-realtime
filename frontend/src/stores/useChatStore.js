@@ -38,12 +38,7 @@ const useChatStore = create((set, get) => ({
   /* ================= CREATE GROUP ================= */
   onCreateGroup: (conversation) => {
     set((state) => ({
-      conversations: [
-        conversation,
-        ...state.conversations.filter(
-          (c) => String(c._id) !== String(conversation._id)
-        ),
-      ],
+      conversations: [conversation, ...state.conversations],
     }));
   },
 
@@ -91,17 +86,15 @@ const useChatStore = create((set, get) => ({
   /* ================= INIT SOCKET ================= */
   initSocket: () => {
     const store = get();
-    socket.off("receive-message", store.onReceiveMessage);
-    socket.off("conversation-createGroup", store.onCreateGroup);
-    socket.off("member-updated", store.onMemberUpdated);
-    socket.off("conversation-added", store.onConversationAdded);
-    socket.off("member-removed", store.onMemberRemoved);
-    socket.off("conversation-deleted", store.onConversationDeleted);
+
+    socket.off();
 
     socket.on("receive-message", store.onReceiveMessage);
     socket.on("conversation-createGroup", store.onCreateGroup);
+
     socket.on("member-updated", store.onMemberUpdated);
     socket.on("conversation-added", store.onConversationAdded);
+
     socket.on("member-removed", store.onMemberRemoved);
     socket.on("conversation-deleted", store.onConversationDeleted);
   },

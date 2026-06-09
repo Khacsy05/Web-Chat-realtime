@@ -2,12 +2,11 @@ import React, { useEffect, useState } from "react";
 import ChatList from "./ChatList";
 import ChatPanel from "./ChatPanel";
 import useChatStore from "@/stores/useChatStore";
-import socket from "@/lib/socket";
 
 const MD_PX = 768;
 
 const HomePage = () => {
-  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [lastMessageEvent, setLastMessageEvent] = useState(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
 
@@ -15,33 +14,22 @@ const HomePage = () => {
   const initSocket = useChatStore((state) => state.initSocket);
 
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
-    }
     initSocket();
   }, [initSocket]);
 
+  const selectedConversation = conversations.find(
+    (c) => String(c._id) === String(selectedConversationId)
+  );
+
   const handleSelectConversation = (conversation) => {
-    setSelectedConversation(conversation);
+    setSelectedConversationId(conversation._id);
     if (window.innerWidth < MD_PX) setMobileShowChat(true);
   };
 
   const handleResetConversation = () => {
-    setSelectedConversation(null);
+    setSelectedConversationId(null);
     setMobileShowChat(false);
   };
-
-  useEffect(() => {
-    if (!selectedConversation?._id) return;
-
-    const nextSelected = conversations.find(
-      (c) => String(c._id) === String(selectedConversation._id)
-    );
-
-    if (nextSelected && nextSelected !== selectedConversation) {
-      setSelectedConversation(nextSelected);
-    }
-  }, [conversations, selectedConversation]);
 
   const handleMessageEvent = (payload) => {
     setLastMessageEvent(payload);
@@ -55,7 +43,7 @@ const HomePage = () => {
         }`}
       >
         <ChatList
-          selectedConversation={selectedConversation}
+          selectedConversationId={selectedConversationId}
           onSelectConversation={handleSelectConversation}
           lastMessageEvent={lastMessageEvent}
         />

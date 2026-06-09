@@ -1,6 +1,6 @@
 import React from 'react'
-import ProfileFriend from './ProfileFriend';
 import GroupInfoModal from './GroupInfoModal';
+import ProfileFriend from './ProfileFriend';
 
 const MenuProfile = ({ type, data }) => {
   if (type === 'group') {
