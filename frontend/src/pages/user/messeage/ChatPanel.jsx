@@ -27,8 +27,8 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack ,onSelec
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   useEffect(() => {
-    setRightView("details")
-  },[selectedConversation])
+    setRightView("details");
+  }, [selectedConversation?._id]);
   const handleMessageEvent = (payload) => {
     onMessageEvent?.(payload);
   };  

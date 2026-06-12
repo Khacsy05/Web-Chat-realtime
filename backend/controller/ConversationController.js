@@ -94,7 +94,15 @@ export const createGroupConversation = async (req,res) => {
         const newGroup = await Conversation.findById(groupData._id).populate(
             "members"
         );
-        io.emit("conversation-createGroup", groupData);
+
+        // Chỉ báo cho đúng các thành viên của nhóm, và gửi payload đã populate
+        // để UI có đủ member info ngay lập tức.
+        newGroup.members.forEach((member) => {
+            const socketId = onlineUsers.get(String(member._id));
+            if (socketId) {
+                io.to(socketId).emit("conversation-createGroup", newGroup);
+            }
+        });
         res.status(201).json(newGroup);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -186,49 +194,56 @@ export const removeMember = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy nhóm" });
     }
 
-    // 1. Nếu admin bị remove → chuyển admin
-    if (conversation.adminGroup.toString() === memberId.toString()) {
-        if (!newAdminId) {
-            return res.status(400).json({
-            message: "Phải chọn trưởng nhóm mới"
-            });
-        }
-        conversation.adminGroup = newAdminId;
+    const isAdmin =
+      conversation.adminGroup.toString() === memberId.toString();
+
+    // 🔥 nếu admin bị remove → cần transfer admin
+    if (isAdmin && conversation.members.length > 1) {
+      if (!newAdminId ) {
+        return res.status(400).json({
+          message: "Phải chọn trưởng nhóm mới",
+        });
+      }
+      conversation.adminGroup = newAdminId;
     }
 
-    // 2. Remove member
+    // remove member
     conversation.members = conversation.members.filter(
-      (m) => m._id.toString() !== memberId
+      (m) => m._id.toString() !== memberId.toString()
     );
 
-    // 3. Nếu group rỗng hoặc chỉ còn 1 người → xóa group
-    if (conversation.members.length < 1) {
+    // 🔥 nếu group rỗng → delete group
+    if (conversation.members.length === 0) {
       await Conversation.findByIdAndDelete(conversationId);
 
-      const kickedSocket = onlineUsers.get(String(memberId));
-      if (kickedSocket) {
-        io.to(kickedSocket).emit("remove-member", conversationId);
+      const socketId = onlineUsers.get(String(memberId));
+      if (socketId) {
+        io.to(socketId).emit("conversation-deleted", conversationId);
       }
 
       return res.status(200).json({ deleted: true });
     }
 
-    // 4. Lưu lại group
     await conversation.save();
     await conversation.populate("members");
 
-    // 5. Notify member bị kick
+    // 🔥 notify user bị kick / rời
     const kickedSocket = onlineUsers.get(String(memberId));
     if (kickedSocket) {
-      io.to(kickedSocket).emit("remove-member", conversationId);
+      io.to(kickedSocket).emit("member-removed", {
+        conversationId,
+      });
     }
 
-    // 6. Notify remaining members
+    // 🔥 notify remaining members
     conversation.members.forEach((member) => {
       const socketId = onlineUsers.get(String(member._id));
 
       if (socketId) {
-        io.to(socketId).emit("member-updated", conversation);
+        io.to(socketId).emit("member-updated", {
+          conversationId,
+          conversation,
+        });
       }
     });
 
@@ -239,37 +254,101 @@ export const removeMember = async (req, res) => {
 };
 
 export const addMember = async (req, res) => {
-    try {
-        const { conversationId, memberIds } = req.body;
+  try {
+    const { conversationId, memberIds } = req.body;
 
-        const conversation = await Conversation.findByIdAndUpdate(
-        conversationId,
-        {
-            $addToSet: {
-                members: { $each: memberIds } // thêm nhiều user, không trùng
-            }
-        },
-        { new: true }
-        ).populate("members");
-
-        if (!conversation) {
-        return res.status(404).json({ message: "Không tìm thấy nhóm" });
+    const conversation = await Conversation.findByIdAndUpdate(
+      conversationId,
+      {
+        $addToSet: {
+          members: { $each: memberIds }
         }
+      },
+      { returnDocument: 'after' }
+    ).populate("members");
 
-        // 🔥 socket emit cho TẤT CẢ thành viên trong nhóm
-        conversation.members.forEach(member => {
-        const socketId = onlineUsers.get(String(member._id));
-
-        if (socketId) {
-            io.to(socketId).emit("member-added", {
-            conversationId,
-            members: conversation.members
-            });
-        }
-        });
-
-        return res.status(200).json(conversation);
-    } catch (error) {
-        return res.status(500).json({ message: error.message });
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy nhóm" });
     }
+
+    // 1. Notify group cũ
+    conversation.members.forEach(member => {
+      const socketId = onlineUsers.get(String(member._id));
+
+      if (socketId) {
+        io.to(socketId).emit("member-updated", {
+          conversationId,
+          conversation,
+        });
+      }
+    });
+
+    // 2. Notify user mới (QUAN TRỌNG)
+    memberIds.forEach((id) => {
+      const socketId = onlineUsers.get(String(id));
+
+      if (socketId) {
+        io.to(socketId).emit("conversation-added", conversation);
+      }
+    });
+
+    return res.status(200).json(conversation);
+
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+export const updateAvatar = async (req, res) => {
+  try {
+    const {conversationId} = req.body;
+
+    const avatarUrl = `/uploads/${req.file.filename}`;
+
+    const updated = await Conversation.findOneAndUpdate(
+      { _id : conversationId },
+      { avatar: avatarUrl },
+      { returnDocument: 'after' }
+    ).populate("members");
+    updated.members.forEach((member) => {
+      // Lấy socketId của từng thành viên dựa vào ID của họ
+      const socketId = onlineUsers.get(String(member._id));
+      
+      // Nếu thành viên đó đang online, gửi tín hiệu cập nhật ảnh cho riêng họ
+      if (socketId) {
+        io.to(socketId).emit("group-avatar-updated", {
+          conversationId: conversationId,
+          avatar: avatarUrl,
+        });
+      }
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json(err.message);
+  }
+};
+export const updateNameGroup = async (req, res) => {
+  try {
+    const {conversationId,newGroupName} = req.body;
+
+    const updated = await Conversation.findOneAndUpdate(
+      { _id : conversationId },
+      { nameGroup: newGroupName },
+      { returnDocument: 'after' }
+    ).populate("members");
+    updated.members.forEach((member) => {
+      // Lấy socketId của từng thành viên dựa vào ID của họ
+      const socketId = onlineUsers.get(String(member._id));
+      
+      // Nếu thành viên đó đang online, gửi tín hiệu cập nhật ảnh cho riêng họ
+      if (socketId) {
+        io.to(socketId).emit("group-name-updated", {
+          conversationId: conversationId,
+          nameGroup: newGroupName
+        });
+      }
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json(err.message);
+  }
 };

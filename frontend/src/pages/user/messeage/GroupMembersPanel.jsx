@@ -1,5 +1,4 @@
 import Modal from "@/components/Modal";
-import ProfileFriend from "../friend/ProfileFriend";
 import { useState, useEffect } from "react";
 import AddMembersModal from "./AddMembersModal";
 import { MoreHorizontal, X } from "lucide-react";
@@ -24,6 +23,12 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
         description: "",
         onConfirm: () => {},
     });
+    const adminId = conversations.adminGroup;
+
+    const sortedMembers = [
+        ...members.filter(m => String(m._id) === String(adminId)),
+        ...members.filter(m => String(m._id) !== String(adminId)),
+    ];
 
     // ================= API =================
     const handleRemoveMember = async (memberId, newAdminId = null) => {
@@ -48,11 +53,20 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
         };
 
         if (type === "admin") {
-            config.title = "Rời nhóm";
-            config.description = "Bạn cần chọn trưởng nhóm mới";
-            config.onConfirm = () => {
-                setOpenTransferModal(true);
-            };
+            if (members.length > 1) {
+                config.title = "Rời nhóm";
+                config.description = "Bạn là trưởng nhóm. Bạn cần chọn trưởng nhóm mới trước khi rời nhóm.";
+                config.onConfirm = () => {
+                    setOpenTransferModal(true);
+                };
+            } else {
+                // Trường hợp nhóm chỉ còn duy nhất 1 mình admin tự kỷ
+                config.title = "Giải tán nhóm";
+                config.description = "Bạn là thành viên duy nhất. Rời khỏi nhóm đồng nghĩa với việc giải tán và xóa nhóm này hoàn toàn?";
+                config.onConfirm = () => {
+                    handleRemoveMember(memberId);
+                };
+            }
         }
 
         if (type === "member") {
@@ -92,6 +106,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
 
             {/* ADD */}
             <button
+                type="button"
                 className="m-4 py-2 bg-gray-100 rounded"
                 onClick={() => setOpenAddMembers(true)}
             >
@@ -100,7 +115,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
 
             {/* LIST */}
             <div className="flex-1 overflow-y-auto px-4">
-                {members.map((m) => (
+                {sortedMembers.map((m) => (
                     <div
                         key={m._id}
                         className="group flex items-center gap-3 py-3 hover:bg-gray-50"
@@ -116,9 +131,11 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                         <div className="flex-1">
                             <div>{m.fullname}</div>
                             <div className="text-xs text-gray-400">
-                                {m._id === conversations.adminGroup
-                                    ? "Trưởng nhóm"
-                                    : ""}
+                               {m._id === adminId && (
+                                    <span className="text-xs px-2 py-[2px] rounded bg-blue-100 text-blue-600">
+                                        Trưởng nhóm
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -140,12 +157,13 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                             {openMenuUserId === m._id && (
                                 <div className="absolute right-0 top-7 bg-white border rounded shadow w-36">
 
-                                    {m._id === conversations.adminGroup ? (
+                                    {String(m._id) === String(conversations.adminGroup)? (
                                         <button
+                                            type="button"
                                             className="w-full text-left p-2"
                                             onClick={() => {
                                                 setLeavingAdminId(m._id);
-                                                openConfirmDialog("admin");
+                                                openConfirmDialog("admin", m._id);
                                                 setOpenMenuUserId(null);
                                             }}
                                         >
@@ -153,6 +171,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                                         </button>
                                     ) : (
                                         <button
+                                            type="button"
                                             className="w-full text-left p-2 text-red-500"
                                             onClick={() => {
                                                 openConfirmDialog(
@@ -174,91 +193,160 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
 
             {/* TRANSFER ADMIN MODAL */}
             {openTransferModal && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-                    <div className="bg-white w-[400px] p-4 rounded">
+                <div className="fixed inset-0 z-[999] flex items-center justify-center">
+                    
+                    {/* Overlay chặn hover phía sau */}
+                    <div
+                    className="absolute inset-0 bg-black/40"
+                    onClick={() => {
+                        setOpenTransferModal(false);
+                        setSelectedNewAdmin(null);
+                    }}
+                    />
 
-                        <h3>Chọn trưởng nhóm mới</h3>
+                    {/* Modal box */}
+                    <div className="relative bg-white w-[420px] rounded-xl shadow-lg p-4">
 
-                        <div className="max-h-[250px] overflow-y-auto">
-                            {members
-                                .filter(
-                                    (m) =>
-                                        m._id !== conversations.adminGroup
-                                )
-                                .map((m) => (
-                                    <div
-                                        key={m._id}
-                                        onClick={() =>
-                                            setSelectedNewAdmin(m._id)
-                                        }
-                                        className={`p-2 cursor-pointer ${
-                                            selectedNewAdmin === m._id
-                                                ? "bg-gray-200"
-                                                : ""
-                                        }`}
-                                    >
-                                        {m.fullname}
-                                    </div>
-                                ))}
-                        </div>
+                    <h3 className="text-base font-semibold mb-3">
+                        Chọn trưởng nhóm mới
+                    </h3>
 
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button
-                                onClick={() => {
-                                    setOpenTransferModal(false);
-                                    setSelectedNewAdmin(null);
-                                }}
+                    {/* LIST */}
+                    <div className="max-h-[300px] overflow-y-auto pr-1">
+                        {members
+                        .filter(m => m._id !== conversations.adminGroup)
+                        .map(m => {
+                            const isSelected = selectedNewAdmin === m._id;
+
+                            return (
+                            <div
+                                key={m._id}
+                                onClick={() => setSelectedNewAdmin(m._id)}
+                                className={`
+                                flex items-center gap-3 p-2 rounded-lg cursor-pointer
+                                transition
+                                ${isSelected ? "bg-blue-50" : "hover:bg-gray-100"}
+                                `}
                             >
-                                Hủy
-                            </button>
+                                {/* Checkbox (chỉ hiển thị) */}
+                                <input
+                                    type="radio"
+                                    checked={isSelected}
+                                    readOnly
+                                    className="w-4 h-4 text-blue-600"
+                                />
 
-                            <button
-                                disabled={!selectedNewAdmin}
-                                className="bg-blue-500 text-white px-3 py-1 rounded"
-                                onClick={async () => {
-                                    await handleRemoveMember(
-                                        leavingAdminId,
-                                        selectedNewAdmin
-                                    );
+                                {/* Avatar */}
+                                <img
+                                    src={
+                                        m.avatar
+                                        ? `http://localhost:5000${m.avatar}`
+                                        : "/uploads/default-avatar.png"
+                                    }
+                                    className="w-10 h-10 rounded-full object-cover border"
+                                />
 
-                                    setOpenTransferModal(false);
-                                    setSelectedNewAdmin(null);
-                                    setLeavingAdminId(null);
-                                }}
-                            >
-                                Xác nhận
-                            </button>
-                        </div>
+                                {/* Name */}
+                                <span className="text-sm font-medium text-gray-800 flex-1">
+                                    {m.fullname}
+                                </span>
+                            </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* ACTION */}
+                    <div className="flex justify-end gap-2 mt-4">
+                        <button
+                            className="px-3 py-1 rounded border text-sm"
+                            onClick={() => {
+                                setOpenTransferModal(false);
+                                setSelectedNewAdmin(null);
+                            }}
+                        >
+                            Hủy
+                        </button>
+
+                        <button
+                            type="button"
+                            disabled={!selectedNewAdmin}
+                            className={`
+                                px-4 py-1 rounded text-sm text-white
+                                ${selectedNewAdmin
+                                ? "bg-blue-500 hover:bg-blue-600"
+                                : "bg-gray-300 cursor-not-allowed"}
+                            `}
+                            onClick={async () => {
+                                await handleRemoveMember(
+                                leavingAdminId,
+                                selectedNewAdmin
+                                );
+
+                                setOpenTransferModal(false);
+                                setSelectedNewAdmin(null);
+                                setLeavingAdminId(null);
+                            }}
+                        >
+                            Xác nhận
+                        </button>
+                    </div>
                     </div>
                 </div>
             )}
 
             {/* CONFIRM MODAL */}
             {confirmModal.isOpen && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/40">
-                    <div className="bg-white p-4 rounded w-[350px]">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+                {/* Lớp nền mờ đen phía sau */}
+                <div 
+                    className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+                    onClick={closeConfirmDialog}
+                />
+                
+                {/* Khung nội dung Popup */}
+                <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all border border-gray-100 scale-in-center">
+                    {/* Nút X đóng nhanh */}
+                    <button
+                    type="button"
+                    onClick={closeConfirmDialog}
+                    className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                    aria-label="Đóng popup"
+                    >
+                    <X size={18} strokeWidth={2.5} />
+                    </button>
 
-                        <h3>{confirmModal.title}</h3>
-                        <p className="text-sm text-gray-500">
-                            {confirmModal.description}
+                    <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0 pr-6">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                        {confirmModal.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                        {confirmModal.description}
                         </p>
-
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={closeConfirmDialog}>
-                                Hủy
-                            </button>
-
-                            <button
-                                className="bg-red-500 text-white px-3 py-1 rounded"
-                                onClick={() => {
-                                    confirmModal.onConfirm();
-                                    closeConfirmDialog();
-                                }}
-                            >
-                                OK
-                            </button>
-                        </div>
                     </div>
+                    </div>
+
+                    {/* Các nút bấm hành động của Popup */}
+                    <div className="mt-6 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        className="h-9 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                        onClick={closeConfirmDialog}
+                    >
+                        Hủy bỏ
+                    </button>
+                    <button
+                        type="button"
+                        className="h-9 rounded-lg bg-[#e03131] px-4 text-sm font-medium text-white hover:bg-[#c92a2a] transition shadow-sm"
+                        onClick={() => {
+                        confirmModal.onConfirm(); // Kích hoạt chạy hàm xóa/hủy đã nạp
+                        closeConfirmDialog();     // Chạy xong đóng popup
+                        }}
+                    >
+                        Đồng ý
+                    </button>
+                    </div>
+                </div>
                 </div>
             )}
             {openAddMembers && ( 

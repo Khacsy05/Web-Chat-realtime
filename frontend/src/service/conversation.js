@@ -55,6 +55,26 @@ const conversation = {
             throw error.response || { message: "Loi roi nhom" };
         }
     },
+    updateAvatar: async (formData) => {
+        try {
+            const response = await api.put("/conversation/updateAvatar", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Loi cap nhat avatar" };
+        }
+    },
+    updateNameGroup: async (data) => {
+        try {
+            const response = await api.put("/conversation/updateNameGroup", data);
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Loi cap nhat avatar" };
+        }
+    },
 }
 
 export default conversation

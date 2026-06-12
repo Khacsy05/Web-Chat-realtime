@@ -9,7 +9,7 @@ import CreateGroup from './CreateGroup';
 import Modal from '@/components/Modal';
 import useChatStore from '@/stores/useChatStore';
 
-const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent }) => {
+const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEvent }) => {
   const [isSearch, setIsSearch] = useState(false);
   const [tab, setTab] = useState('all');
   const [activeAction, setActiveAction] = useState(null);
@@ -192,7 +192,7 @@ const ChatList = ({ selectedConversation, onSelectConversation, lastMessageEvent
       <div className="flex-1 min-h-0 overflow-y-auto">
         <UserCardChat
           userCardChat={conversations}
-          selectedConversation={selectedConversation}
+          selectedConversation={selectedConversationId}
           onSelectConversation={onSelectConversation}
           lastMessageEvent={lastMessageEvent}
         />

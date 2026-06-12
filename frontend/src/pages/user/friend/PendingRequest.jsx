@@ -4,7 +4,7 @@ import { useOutletContext, Link } from "react-router-dom"; // Thêm Link nếu c
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, X, User, UserCheck, Mail, ChevronDown, ChevronUp } from 'lucide-react'; // Thêm các icon cần thiết
 import Modal from '@/components/Modal';
-import ProfileFriend from './ProfileFriend';
+import ProfileFriend from '../profile/ProfileFriend';
 
 const PendingRequest = () => {
   const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};

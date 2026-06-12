@@ -188,7 +188,7 @@ export const resetPass = async (req,res) => {
         const user = await Auth.findOneAndUpdate(
             {email},
             {password: newPassword},
-            {new:true}
+            { returnDocument: 'after' }
         )
         if(!user){
             return res.status(404).json({
@@ -234,7 +234,7 @@ export const updateProfile = async (req, res) => {
         address,
         gender,
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     res.json(updated);
