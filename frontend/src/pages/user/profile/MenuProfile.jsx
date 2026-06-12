@@ -1,11 +1,27 @@
-import React from 'react'
+import React, { useState } from 'react'
 import GroupInfoModal from './GroupInfoModal';
 import ProfileFriend from './ProfileFriend';
+import GroupMembersPanel from '../messeage/GroupMembersPanel';
 
-const MenuProfile = ({ type, data,onSelectConversation }) => {
+const MenuProfile = ({ type, data, onSelectConversation ,selectedConversation}) => {
+  const [view, setView] = useState("profile"); 
+
+  // 1. Nếu là cuộc trò chuyện Nhóm
   if (type === 'group') {
     return (
-      <GroupInfoModal initialData={data} onSelectConversation={onSelectConversation} />
+      <> {/* Thêm thẻ bọc Fragment ở đây */}
+        {view === "profile" && (
+           <GroupInfoModal initialData={data} onSelectConversation={onSelectConversation} onOpenMembers={() => setView("members")}/>
+        )}
+
+        {view === "members" && (
+          <GroupMembersPanel
+            conversations={selectedConversation}
+            onSelectConversation={onSelectConversation}
+            onBack={() => setView("profile")} // Cho phép quay lại profile
+          />
+        )}
+      </>
     );
   }
 
@@ -18,4 +34,5 @@ const MenuProfile = ({ type, data,onSelectConversation }) => {
 
   return <div className="text-gray-500 text-center py-4">Không tìm thấy thông tin phù hợp.</div>;
 };
-export default MenuProfile
+
+export default MenuProfile;
