@@ -59,6 +59,7 @@ const HomePage = () => {
             selectedConversation={selectedConversation}
             onMessageEvent={handleMessageEvent}
             onSelectConversation={handleResetConversation}
+            onMobileBack={handleResetConversation}
           />
         </div>
       ) : (

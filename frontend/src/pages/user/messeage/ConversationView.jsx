@@ -651,7 +651,7 @@ const ConversationView = ({
 
       {openProfile && (
         <Modal
-          title="Thông tin tài khoản"
+          title={isGroup ? 'THÔNG TIN NHÓM' : 'THÔNG TIN CÁ NHÂN'}
           onClose={() => setOpenProfile(null)}
           size="sm"
         >
@@ -660,6 +660,7 @@ const ConversationView = ({
               type = {isGroup ? 'group' : 'personal'}
               data = {openProfile}
               onSelectConversation={onSelectConversation}
+              selectedConversation={selectedConversation}
             />
           
         </Modal>
