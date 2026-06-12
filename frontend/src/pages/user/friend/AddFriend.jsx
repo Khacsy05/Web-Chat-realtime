@@ -7,7 +7,7 @@ import { useOutletContext } from "react-router-dom";
 import AllFriend from './AllFriend';
 import { Button } from '@/components/ui/button';
 import Modal from '@/components/Modal';
-import ProfileFriend from './ProfileFriend';
+import ProfileFriend from '../profile/ProfileFriend';
 
 const AddFriend = () => {
   const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};

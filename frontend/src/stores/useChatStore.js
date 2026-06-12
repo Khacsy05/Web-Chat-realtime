@@ -1,21 +1,18 @@
-import { create } from 'zustand';
-import socket from '@/lib/socket';
+import { create } from "zustand";
+import socket from "@/lib/socket";
 
 const useChatStore = create((set, get) => ({
   conversations: [],
 
-  /* ================== BASIC ================== */
   setConversations: (updater) =>
     set((state) => ({
       conversations:
-        typeof updater === 'function'
+        typeof updater === "function"
           ? updater(state.conversations)
           : updater,
     })),
 
-  /* ================== REALTIME HANDLERS ================== */
-
-  // 1️⃣ Nhận tin nhắn mới → đưa conversation lên đầu
+  /* ================= MESSAGES ================= */
   onReceiveMessage: (payload) => {
     set((state) => {
       const idx = state.conversations.findIndex(
@@ -27,7 +24,6 @@ const useChatStore = create((set, get) => ({
       const updated = {
         ...state.conversations[idx],
         lastMessage: payload.content,
-        lastSenderId: payload.senderId,
         updatedAt: new Date().toISOString(),
       };
 
@@ -39,32 +35,51 @@ const useChatStore = create((set, get) => ({
     });
   },
 
-  // 2️⃣ Tạo group mới → thêm vào list
-  onCreateGroup: (conversation) => {
-    set((state) => {
-      const exists = state.conversations.some(
-        (c) => String(c._id) === String(conversation._id)
-      );
-      if (exists) return state;
-
-      return {
-        conversations: [conversation, ...state.conversations],
-      };
-    });
+  /* ================= CREATE GROUP ================= */
+   onCreateGroup: (conversation) => {
+    set((state) => ({
+      conversations: [
+        conversation,
+        ...state.conversations.filter(
+          (c) => String(c._id) !== String(conversation._id)
+        ),
+      ],
+    }));
   },
 
-  // 3️⃣ Add member → update members
-  onMemberAdded: ({ conversationId, members }) => {
+  /* ================= ADD MEMBER ================= */
+  onMemberUpdated: ({ conversationId, conversation }) => {
     set((state) => ({
       conversations: state.conversations.map((c) =>
         String(c._id) === String(conversationId)
-          ? { ...c, members }
+          ? conversation
           : c
       ),
     }));
   },
 
-  // 4️⃣ Xoá conversation
+  /* ================= NEW GROUP FOR USER ================= */
+  onConversationAdded: (conversation) => {
+    set((state) => ({
+      conversations: [
+        conversation,
+        ...state.conversations.filter(
+          (c) => String(c._id) !== String(conversation._id)
+        ),
+      ],
+    }));
+  },
+
+  /* ================= REMOVE MEMBER ================= */
+  onMemberRemoved: ({ conversationId }) => {
+    set((state) => ({
+      conversations: state.conversations.filter(
+        (c) => String(c._id) !== String(conversationId)
+      ),
+    }));
+  },
+
+  /* ================= DELETE GROUP ================= */
   onConversationDeleted: (conversationId) => {
     set((state) => ({
       conversations: state.conversations.filter(
@@ -72,27 +87,45 @@ const useChatStore = create((set, get) => ({
       ),
     }));
   },
-
-  // 5️⃣ Bị kick / rời nhóm
-  onRemoveMember: (conversationId) => {
+  onUpdateAvatarConversation: ({ conversationId, avatar }) => {
     set((state) => ({
-      conversations: state.conversations.filter(
-        (c) => String(c._id) !== String(conversationId)
+      conversations: state.conversations.map((c) =>
+        String(c._id) === String(conversationId)
+          ? { ...c, avatar: avatar } 
+          : c
+      ),
+    }));
+  },
+  onUpdateNameGroup: ({ conversationId, nameGroup }) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        String(c._id) === String(conversationId)
+          ? { ...c, nameGroup: nameGroup } 
+          : c
       ),
     }));
   },
 
-  /* ================== INIT SOCKET ================== */
+  /* ================= INIT SOCKET ================= */
   initSocket: () => {
     const store = get();
+    socket.off("receive-message", store.onReceiveMessage);
+    socket.off("conversation-createGroup", store.onCreateGroup);
+    socket.off("member-updated", store.onMemberUpdated);
+    socket.off("conversation-added", store.onConversationAdded);
+    socket.off("member-removed", store.onMemberRemoved);
+    socket.off("conversation-deleted", store.onConversationDeleted);
+    socket.off("group-avatar-updated", store.onUpdateAvatarConversation);
+    socket.off("group-name-updated", store.onUpdateNameGroup);
 
-    socket.off(); // tránh bị duplicate khi reload
-
-    socket.on('receive-message', store.onReceiveMessage);
-    socket.on('conversation-createGroup', store.onCreateGroup);
-    socket.on('member-added', store.onMemberAdded);
-    socket.on('conversation-deleted', store.onConversationDeleted);
-    socket.on('remove-member', store.onRemoveMember);
+    socket.on("receive-message", store.onReceiveMessage);
+    socket.on("conversation-createGroup", store.onCreateGroup);
+    socket.on("member-updated", store.onMemberUpdated);
+    socket.on("conversation-added", store.onConversationAdded);
+    socket.on("member-removed", store.onMemberRemoved);
+    socket.on("conversation-deleted", store.onConversationDeleted);
+    socket.on("group-avatar-updated", store.onUpdateAvatarConversation);
+    socket.on("group-name-updated", store.onUpdateNameGroup);
   },
 }));
 

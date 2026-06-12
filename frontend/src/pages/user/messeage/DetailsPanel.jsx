@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import useAuthStore from '@/stores/useAuthStore';
+import useChatStore from '@/stores/useChatStore';
 import { 
   BellOff, 
   Pin, 
@@ -23,8 +24,9 @@ import conversation from '@/service/conversation';
 import { div } from 'framer-motion/client';
 import AddMembersModal from './AddMembersModal';
 
-const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack ,onOpenMembers }) => {
+const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMembers }) => {
   const currentUser = useAuthStore((state) => state.user);
+  const setConversations = useChatStore((state) => state.setConversations);
   
   // Trạng thái đóng/mở các mục thả xuống (Accordion)
   const [isOpenMedia, setIsOpenMedia] = useState(true);
@@ -73,7 +75,6 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
     try {
       await conversation.deleteConversation(selectedConversation._id);
       if (onSelectConversation) onSelectConversation(null);
-      if (onMobileBack) onMobileBack();
     } catch (error) {
       console.error("Lỗi khi thu hồi:", error);
     }
@@ -81,9 +82,9 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
 
   const handleRemoveMember = async (memberId) => {
     try {
-      await conversation.removeMember(selectedConversation._id,memberId);
+      const response = await conversation.removeMember(selectedConversation._id,memberId);
       if (onSelectConversation) onSelectConversation(null);
-      if (onMobileBack) onMobileBack();
+      
     } catch (error) {
       console.error("Lỗi khi roi nhom:", error);
     }

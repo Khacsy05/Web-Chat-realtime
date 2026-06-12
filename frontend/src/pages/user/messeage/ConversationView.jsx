@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input';
 import message from '@/service/message';
 import useAuthStore from '@/stores/useAuthStore';
-import { ArrowLeft, PanelLeft, Search, Send, ThumbsUp } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, PanelLeft, Search, Send, ThumbsUp } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -9,7 +9,10 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import socket from '@/lib/socket';
 import Modal from '@/components/Modal';
-import ProfileFriend from '../friend/ProfileFriend';
+import MenuProfile from '../profile/MenuProfile';
+import Profile from '../profile/profile';
+import ProfileFriend from '../profile/ProfileFriend';
+
 
 const messSchema = yup.object().shape({
   content: yup.string().required("vui long nhap noi dung"),
@@ -27,6 +30,7 @@ const ConversationView = ({
   onOpenRighPage,
   isOpenRighPage,
   onMobileBack,
+  onSelectConversation
 }) => {
   const currentUser = useAuthStore((state) => state.user);
   const [mess, setMess] = useState([]);
@@ -60,6 +64,56 @@ const ConversationView = ({
     if (!currentUser?.idUser) return;
     socket.emit("join", String(currentUser.idUser));
   }, [currentUser?.idUser]);
+  
+
+  const [typingUser, setTypingUser] = useState(null);
+  const typingTimeoutRef = useRef(null);
+  const thisMember =
+    selectedConversation?.members?.find(
+      (member) => String(member._id) === String(currentUser?.idUser)
+    );
+  
+  useEffect(() => {
+    const handleTyping = (payload) => {
+      setTypingUser({
+        userId: payload.userId ,
+        fullname: payload.fullname || "Ai đó",
+      });
+    };
+
+    const handleStopTyping = () => {
+      setTypingUser(null);
+    };
+
+    socket.on("typing", handleTyping);
+    socket.on("stop-typing", handleStopTyping);
+
+    return () => {
+      socket.off("typing", handleTyping);
+      socket.off("stop-typing", handleStopTyping);
+    };
+  }, []);
+
+  const handleTyping = () => {
+    if (!selectedConversation?._id || !currentUser?.idUser) return;
+    if (!thisMember?.fullname) return;
+
+    socket.emit("typing", {
+      conversationId: selectedConversation._id,
+      userId: currentUser.idUser,
+      fullname: thisMember.fullname
+    });
+
+    clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stop-typing", {
+        conversationId: selectedConversation._id,
+        userId: currentUser.idUser,
+        fullname: thisMember.fullname
+      });
+    }, 1000);
+  };
 
   const {
     register,
@@ -211,10 +265,7 @@ const ConversationView = ({
       (member) => String(member._id) !== String(currentUser?.idUser)
     ) || selectedConversation?.members?.[0];
 
-  const thisMember =
-    selectedConversation?.members?.find(
-      (member) => String(member._id) === String(currentUser?.idUser)
-    );
+  
   const isGroup = selectedConversation?.isGroup;
   const members = selectedConversation?.members || [];
   const totalMembers = members.length;
@@ -228,12 +279,66 @@ const ConversationView = ({
   const userName = thisMember?.fullname || 'Nguoi dung';
   const conversationId = selectedConversation?._id;
 
+  const [onlineMap, setOnlineMap] = useState({});
+  useEffect(() => {
+    socket.emit("request-online-users");
+
+    socket.on("online-users", (userIds) => {
+      setOnlineMap(
+        userIds.reduce((acc, userId) => {
+          acc[userId] = true;
+          return acc;
+          }, {})
+      );
+    }); 
+
+    socket.on("user-status", ({ userId, isActive }) => {
+      setOnlineMap(prev => ({
+         ...prev,
+        [userId]: isActive
+      }));
+    });
+
+    return () => {
+      socket.off("online-users");
+      socket.off("user-status");
+    };
+  }, []);
+  const isOnline = !!onlineMap[otherMember?._id];
+  const getLastActiveText = (lastActive) => {
+    if (!lastActive) return 'Offline';
+
+    const last = new Date(lastActive);
+    if (Number.isNaN(last.getTime())) return 'Offline';
+
+    const diffMs = Date.now() - last.getTime();
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+    if (diffMinutes < 1) return 'Hoạt động vài giây trước';
+    if (diffMinutes < 60) return `Hoạt động ${diffMinutes} phút trước`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `Hoạt động ${diffHours} giờ trước`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `Hoạt động ${diffDays} ngày trước`;
+  };
   const handleSendMess = async (data) => {
     try {
-      const receiverId = otherMember?.userId;
+      if (!selectedConversation?._id || !currentUser?.idUser) {
+        toast.error("Không tìm thấy cuộc trò chuyện để gửi tin nhắn");
+        return;
+      }
+
+      const contentToSend = String(data?.content || "").trim();
+      if (!contentToSend) return;
+
+      if (!socket.connected) {
+        socket.connect();
+      }
       const res = await message.sendMessage({
         conversationId,
-        content: data.content
+        content: contentToSend
       });
 
       reset();
@@ -323,8 +428,12 @@ const ConversationView = ({
             )}
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-[18px] font-semibold text-[#3b5bdb]">
               <button className={`relative size-full ${isGroup ? 'cursor-default' : 'cursor-pointer'}`} onClick={() => {
-                if(isGroup) return;
-                setOpenProfile(otherMember)
+                if(isGroup) {
+                  setOpenProfile(selectedConversation)
+                }
+                else{
+                  setOpenProfile(otherMember)
+                }
                 }}>
                   {isGroup ? (
                     selectedConversation?.avatar ? (
@@ -374,7 +483,13 @@ const ConversationView = ({
                 {displayName}
               </div>
               <div className="truncate text-[13px] text-muted-foreground">
-                Dang hoat dong
+                {isOnline ? (
+                  <span className="text-green-500 text-xs">● Đang hoạt động</span>
+                ) : (
+                  <span className="text-gray-400 text-xs">
+                    {getLastActiveText(otherMember?.lastActive)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -496,13 +611,23 @@ const ConversationView = ({
         })}
       </div>
 
+      {typingUser &&
+        typingUser.userId !== currentUser.idUser && (
+          <div className="px-3 py-1 text-xs text-gray-500 flex items-center gap-1">
+            {typingUser.fullname} đang nhập
+            <span className="animate-pulse">
+              <MoreHorizontal />
+            </span>
+          </div>
+      )}
       <div className="shrink-0 border-t bg-white p-3">
         <form onSubmit={handleSubmit(handleSendMess)}>
           <div className="flex items-center gap-2">
             <Input
-              className="h-10 flex-1 border-none bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#3b5bdb]"
+              className="h-10 flex-1"
               placeholder="Nhap tin nhan..."
               {...register("content")}
+              onKeyDown={handleTyping}
             />
             {content?.trim() ? (
               <button
@@ -528,15 +653,18 @@ const ConversationView = ({
         <Modal
           title="Thông tin tài khoản"
           onClose={() => setOpenProfile(null)}
-          size="md"
+          size="sm"
         >
           {/* Thêm key vào đây để React reset lại hoàn toàn state của ProfileFriend mỗi lần đổi người */}
-          <ProfileFriend 
-            key={openProfile._id} 
-            initialData={openProfile}
-          />
+            <MenuProfile
+              type = {isGroup ? 'group' : 'personal'}
+              data = {openProfile}
+              onSelectConversation={onSelectConversation}
+            />
+          
         </Modal>
       )}   
+      
     </div>
   );
 };

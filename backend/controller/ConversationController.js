@@ -326,3 +326,29 @@ export const updateAvatar = async (req, res) => {
     res.status(500).json(err.message);
   }
 };
+export const updateNameGroup = async (req, res) => {
+  try {
+    const {conversationId,newGroupName} = req.body;
+
+    const updated = await Conversation.findOneAndUpdate(
+      { _id : conversationId },
+      { nameGroup: newGroupName },
+      { returnDocument: 'after' }
+    ).populate("members");
+    updated.members.forEach((member) => {
+      // Lấy socketId của từng thành viên dựa vào ID của họ
+      const socketId = onlineUsers.get(String(member._id));
+      
+      // Nếu thành viên đó đang online, gửi tín hiệu cập nhật ảnh cho riêng họ
+      if (socketId) {
+        io.to(socketId).emit("group-name-updated", {
+          conversationId: conversationId,
+          nameGroup: newGroupName
+        });
+      }
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json(err.message);
+  }
+};
