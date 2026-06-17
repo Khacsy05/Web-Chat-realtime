@@ -1,9 +1,10 @@
-import React from 'react';
+import ImageViewer from '@/components/ImageViewer';
+import React, { useState } from 'react';
 
 const ProfileFriend = ({ initialData }) => {
     // Vì backend đã populate hết, initialData đã có sẵn đầy đủ mọi thông tin
-    const profile = initialData; 
-
+    const profile = initialData;
+    const [viewer, setViewer] = useState(null);
     const displayName = profile?.fullname || "Người dùng";
     const avatarSrc = `http://localhost:5000${profile?.avatar || "/uploads/default-avatar.png"}`;
 
@@ -15,6 +16,7 @@ const ProfileFriend = ({ initialData }) => {
                     src={avatarSrc}
                     alt={displayName}
                     className="w-24 h-24 rounded-full object-cover border-2 border-white shadow"
+                    onClick={() => setViewer(avatarSrc)}
                 />
             </div>
 
@@ -37,6 +39,7 @@ const ProfileFriend = ({ initialData }) => {
                     <InfoRow label="Địa chỉ" value={profile?.address || "Chưa cập nhật"} />
                 </div>
             </div>
+            <ImageViewer src={viewer} onClose={() => setViewer(null)} />
         </div>
     );
 };

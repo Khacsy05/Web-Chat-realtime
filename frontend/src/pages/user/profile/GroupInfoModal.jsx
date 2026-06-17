@@ -3,26 +3,27 @@ import { Pencil, ArrowLeft, MoreHorizontal, Settings, LogOut, ArrowRight, Camera
 import conversation from '@/service/conversation';
 import useChatStore from '@/stores/useChatStore';
 import useAuthStore from '@/stores/useAuthStore';
+import ImageViewer from '@/components/ImageViewer';
 
-const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) => {
-    const currentChat = useChatStore((state) => 
+const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMobileBack }) => {
+    const currentChat = useChatStore((state) =>
         state.conversations.find(c => String(c._id) === String(initialData._id))
     );
     const currentUser = useAuthStore((state) => state.user);
     // --- QUẢN LÝ CHUYỂN TRANG GIAO DIỆN ---
     // 'info': Trang chi tiết nhóm | 'edit_name': Trang đổi tên nhóm
-    const [view, setView] = useState('info'); 
+    const [view, setView] = useState('info');
     const [newGroupName, setNewGroupName] = useState(initialData?.nameGroup || "");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [openTransferModal, setOpenTransferModal] = useState(false);
     const [selectedNewAdmin, setSelectedNewAdmin] = useState(null);
-
+    const [viewer, setViewer] = useState(null);
     const [leavingAdminId, setLeavingAdminId] = useState(null);
     const [confirmModal, setConfirmModal] = useState({
         isOpen: false,
         title: "",
         description: "",
-        onConfirm: () => {},
+        onConfirm: () => { },
     });
     const members = initialData?.members || [];
     const displayedMembers = members.slice(0, 3);
@@ -62,17 +63,18 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
             setIsSubmitting(false);
         }
     };
-    
+
     const handleRemoveMember = async (newAdminId = null) => {
         try {
-          await conversation.removeMember(
+            await conversation.removeMember(
                 initialData._id,
                 currentUser.idUser,
                 newAdminId
             );
-          if (onSelectConversation) onSelectConversation(null);
+            if (onSelectConversation) onSelectConversation(null);
+            if (onMobileBack) onMobileBack();
         } catch (error) {
-          console.error("Lỗi khi roi nhom:", error);
+            console.error("Lỗi khi roi nhom:", error);
         }
     };
     const openConfirmDialog = (type) => {
@@ -80,7 +82,7 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
             isOpen: true,
             title: "",
             description: "",
-            onConfirm: () => {},
+            onConfirm: () => { },
         };
 
         if (type === "admin") {
@@ -123,36 +125,37 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
                                 <img
                                     src={`http://localhost:5000${currentChat.avatar}`}
                                     className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
+                                    onClick={() => setViewer(`http://localhost:5000${currentChat.avatar}`)}
                                 />
                             )
-                            : (
-                                <div className="relative size-full">
-                                          {/* Ảnh thành viên 1 */}
-                                    <img 
-                                        src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`} 
-                                        className="absolute top-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-20" 
-                                        alt="mem1"
-                                    />
-                                          {/* Ảnh thành viên 2 */}
-                                    <img 
-                                        src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`} 
-                                        className="absolute top-0 right-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-10" 
-                                        alt="mem2"
-                                    />
-                                          {/* Ảnh thành viên 3 */}
-                                    <img 
-                                        src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`} 
-                                        className="absolute bottom-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-30" 
-                                        alt="mem3"
-                                    />
+                                : (
+                                    <div className="relative size-full">
+                                        {/* Ảnh thành viên 1 */}
+                                        <img
+                                            src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                                            className="absolute top-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-20"
+                                            alt="mem1"
+                                        />
+                                        {/* Ảnh thành viên 2 */}
+                                        <img
+                                            src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                                            className="absolute top-0 right-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-10"
+                                            alt="mem2"
+                                        />
+                                        {/* Ảnh thành viên 3 */}
+                                        <img
+                                            src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                                            className="absolute bottom-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-30"
+                                            alt="mem3"
+                                        />
                                         {/* Vòng tròn số lượng */}
-                                    <div className="absolute bottom-0 right-1 size-9 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
-                                        {totalMembers}
+                                        <div className="absolute bottom-0 right-1 size-9 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
+                                            {totalMembers}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
                         </div>
-                        
+
                         <label className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm text-gray-600 hover:bg-gray-50 cursor-pointer z-10">
                             <Camera size={13} />
                             <input
@@ -165,7 +168,7 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
                     </div>
 
                     {/* Ấn vào vùng này hoặc cây bút chì sẽ CHUYỂN TRANG */}
-                    <div 
+                    <div
                         onClick={() => setView('edit_name')}
                         className="flex items-center gap-1.5 cursor-pointer group mb-3.5"
                     >
@@ -179,20 +182,20 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
                 {/* Members Section */}
                 <div className="py-4 border-b border-gray-100">
                     <h3 className="text-[13.5px] font-medium text-gray-800 mb-2.5">Thành viên ({totalMembers})</h3>
-                    
+
                     <div className="flex items-center -space-x-1.5 isolate">
                         {displayedMembers.map((member, index) => (
-                            <img 
+                            <img
                                 key={member?._id || index}
-                                src={`http://localhost:5000${member?.avatar || '/uploads/default-avatar.png'}`} 
-                                alt={member?.fullname || 'Member'} 
+                                src={`http://localhost:5000${member?.avatar || '/uploads/default-avatar.png'}`}
+                                alt={member?.fullname || 'Member'}
                                 className="h-9 w-9 rounded-full object-cover border-2 border-white shadow-sm"
                                 style={{ zIndex: displayedMembers.length - index }} // Giữ z-index giảm dần cho avatar
                             />
                         ))}
-                        
+
                         {/* Nút 3 chấm giờ đã sát vào hàng avatar và ăn theo khoảng cách -space-x-1.5 */}
-                        <button 
+                        <button
                             className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-gray-600 hover:bg-gray-200 shadow-sm z-0"
                             onClick={onOpenMembers}
                         >
@@ -222,14 +225,14 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
                         <Settings size={16} className="text-gray-500" />
                         <span>Quản lý nhóm</span>
                     </button>
-                    {String(currentUser.idUser) === String(initialData.adminGroup)? (
+                    {String(currentUser.idUser) === String(initialData.adminGroup) ? (
                         <button
                             type="button"
                             className="flex w-full items-center gap-2.5 rounded-md px-2 py-2.5 text-[14.5px] text-red-600 hover:bg-red-50 transition-colors text-left"
                             onClick={() => {
                                 setLeavingAdminId(currentUser.idUser);
                                 openConfirmDialog("admin");
-                                                
+
                             }}
                         >
                             Rời nhóm
@@ -242,169 +245,169 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
                                 openConfirmDialog(
                                     "member"
                                 );
-                           }}
+                            }}
                         >
                             Rời nhóm
                         </button>
-                )}
+                    )}
                 </div>
 
                 {openTransferModal && (
-                <div className="fixed inset-0 z-[999] flex items-center justify-center">
-                    
-                    {/* Overlay chặn hover phía sau */}
-                    <div
-                    className="absolute inset-0 bg-black/40"
-                    onClick={() => {
-                        setOpenTransferModal(false);
-                        setSelectedNewAdmin(null);
-                    }}
-                    />
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center">
 
-                    {/* Modal box */}
-                    <div className="relative bg-white w-[420px] rounded-xl shadow-lg p-4">
-
-                    <h3 className="text-base font-semibold mb-3">
-                        Chọn trưởng nhóm mới
-                    </h3>
-
-                    {/* LIST */}
-                    <div className="max-h-[300px] overflow-y-auto pr-1">
-                        {members
-                        .filter(m => m._id !== initialData.adminGroup)
-                        .map(m => {
-                            const isSelected = selectedNewAdmin === m._id;
-
-                            return (
-                            <div
-                                key={m._id}
-                                onClick={() => setSelectedNewAdmin(m._id)}
-                                className={`
-                                flex items-center gap-3 p-2 rounded-lg cursor-pointer
-                                transition
-                                ${isSelected ? "bg-blue-50" : "hover:bg-gray-100"}
-                                `}
-                            >
-                                {/* Checkbox (chỉ hiển thị) */}
-                                <input
-                                    type="radio"
-                                    checked={isSelected}
-                                    readOnly
-                                    className="w-4 h-4 text-blue-600"
-                                />
-
-                                {/* Avatar */}
-                                <img
-                                    src={
-                                        m.avatar
-                                        ? `http://localhost:5000${m.avatar}`
-                                        : "/uploads/default-avatar.png"
-                                    }
-                                    className="w-10 h-10 rounded-full object-cover border"
-                                />
-
-                                {/* Name */}
-                                <span className="text-sm font-medium text-gray-800 flex-1">
-                                    {m.fullname}
-                                </span>
-                            </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* ACTION */}
-                    <div className="flex justify-end gap-2 mt-4">
-                        <button
-                            className="px-3 py-1 rounded border text-sm"
+                        {/* Overlay chặn hover phía sau */}
+                        <div
+                            className="absolute inset-0 bg-black/40"
                             onClick={() => {
                                 setOpenTransferModal(false);
                                 setSelectedNewAdmin(null);
                             }}
-                        >
-                            Hủy
-                        </button>
+                        />
 
-                        <button
-                            type="button"
-                            disabled={!selectedNewAdmin}
-                            className={`
+                        {/* Modal box */}
+                        <div className="relative bg-white w-[420px] rounded-xl shadow-lg p-4">
+
+                            <h3 className="text-base font-semibold mb-3">
+                                Chọn trưởng nhóm mới
+                            </h3>
+
+                            {/* LIST */}
+                            <div className="max-h-[300px] overflow-y-auto pr-1">
+                                {members
+                                    .filter(m => m._id !== initialData.adminGroup)
+                                    .map(m => {
+                                        const isSelected = selectedNewAdmin === m._id;
+
+                                        return (
+                                            <div
+                                                key={m._id}
+                                                onClick={() => setSelectedNewAdmin(m._id)}
+                                                className={`
+                                flex items-center gap-3 p-2 rounded-lg cursor-pointer
+                                transition
+                                ${isSelected ? "bg-blue-50" : "hover:bg-gray-100"}
+                                `}
+                                            >
+                                                {/* Checkbox (chỉ hiển thị) */}
+                                                <input
+                                                    type="radio"
+                                                    checked={isSelected}
+                                                    readOnly
+                                                    className="w-4 h-4 text-blue-600"
+                                                />
+
+                                                {/* Avatar */}
+                                                <img
+                                                    src={
+                                                        m.avatar
+                                                            ? `http://localhost:5000${m.avatar}`
+                                                            : "/uploads/default-avatar.png"
+                                                    }
+                                                    className="w-10 h-10 rounded-full object-cover border"
+                                                />
+
+                                                {/* Name */}
+                                                <span className="text-sm font-medium text-gray-800 flex-1">
+                                                    {m.fullname}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+
+                            {/* ACTION */}
+                            <div className="flex justify-end gap-2 mt-4">
+                                <button
+                                    className="px-3 py-1 rounded border text-sm"
+                                    onClick={() => {
+                                        setOpenTransferModal(false);
+                                        setSelectedNewAdmin(null);
+                                    }}
+                                >
+                                    Hủy
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={!selectedNewAdmin}
+                                    className={`
                                 px-4 py-1 rounded text-sm text-white
                                 ${selectedNewAdmin
-                                ? "bg-blue-500 hover:bg-blue-600"
-                                : "bg-gray-300 cursor-not-allowed"}
+                                            ? "bg-blue-500 hover:bg-blue-600"
+                                            : "bg-gray-300 cursor-not-allowed"}
                             `}
-                            onClick={async () => {
-                                await handleRemoveMember(
-                                    leavingAdminId,
-                                    selectedNewAdmin
-                                );
+                                    onClick={async () => {
+                                        await handleRemoveMember(
+                                            selectedNewAdmin
+                                        );
 
-                                setOpenTransferModal(false);
-                                setSelectedNewAdmin(null);
-                                setLeavingAdminId(null);
-                            }}
-                        >
-                            Xác nhận
-                        </button>
+                                        setOpenTransferModal(false);
+                                        setSelectedNewAdmin(null);
+                                        setLeavingAdminId(null);
+                                    }}
+                                >
+                                    Xác nhận
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    </div>
-                </div>
-            )}
+                )}
 
                 {confirmModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-                {/* Lớp nền mờ đen phía sau */}
-                <div 
-                    className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-                    onClick={closeConfirmDialog}
-                />
-                
-                {/* Khung nội dung Popup */}
-                <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all border border-gray-100 scale-in-center">
-                    {/* Nút X đóng nhanh */}
-                    <button
-                    type="button"
-                    onClick={closeConfirmDialog}
-                    className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-                    aria-label="Đóng popup"
-                    >
-                    <X size={18} strokeWidth={2.5} />
-                    </button>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+                        {/* Lớp nền mờ đen phía sau */}
+                        <div
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+                            onClick={closeConfirmDialog}
+                        />
 
-                    <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0 pr-6">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                        {confirmModal.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-                        {confirmModal.description}
-                        </p>
-                    </div>
-                    </div>
+                        {/* Khung nội dung Popup */}
+                        <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all border border-gray-100 scale-in-center">
+                            {/* Nút X đóng nhanh */}
+                            <button
+                                type="button"
+                                onClick={closeConfirmDialog}
+                                className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                                aria-label="Đóng popup"
+                            >
+                                <X size={18} strokeWidth={2.5} />
+                            </button>
 
-                    {/* Các nút bấm hành động của Popup */}
-                    <div className="mt-6 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        className="h-9 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                        onClick={closeConfirmDialog}
-                    >
-                        Hủy bỏ
-                    </button>
-                    <button
-                        type="button"
-                        className="h-9 rounded-lg bg-[#e03131] px-4 text-sm font-medium text-white hover:bg-[#c92a2a] transition shadow-sm"
-                        onClick={() => {
-                        confirmModal.onConfirm(); // Kích hoạt chạy hàm xóa/hủy đã nạp
-                        closeConfirmDialog();     // Chạy xong đóng popup
-                        }}
-                    >
-                        Đồng ý
-                    </button>
+                            <div className="flex items-start gap-3">
+                                <div className="flex-1 min-w-0 pr-6">
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                        {confirmModal.title}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                                        {confirmModal.description}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Các nút bấm hành động của Popup */}
+                            <div className="mt-6 flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    className="h-9 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                                    onClick={closeConfirmDialog}
+                                >
+                                    Hủy bỏ
+                                </button>
+                                <button
+                                    type="button"
+                                    className="h-9 rounded-lg bg-[#e03131] px-4 text-sm font-medium text-white hover:bg-[#c92a2a] transition shadow-sm"
+                                    onClick={() => {
+                                        confirmModal.onConfirm(); // Kích hoạt chạy hàm xóa/hủy đã nạp
+                                        closeConfirmDialog();     // Chạy xong đóng popup
+                                    }}
+                                >
+                                    Đồng ý
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                </div>
-            )}
+                )}
+                <ImageViewer src={viewer} onClose={() => setViewer(null)} />
             </div>
         );
     }
@@ -412,11 +415,11 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
     if (view === 'edit_name') {
         return (
             <div className="w-full bg-white text-sans select-none animate-fade-in">
-                
+
                 {/* Header thanh điều hướng quay lại */}
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-5">
-                    <button 
-                        onClick={() => setView('info')} 
+                    <button
+                        onClick={() => setView('info')}
                         className="text-gray-600 hover:text-gray-800 p-1 rounded hover:bg-gray-100 transition-colors"
                     >
                         <ArrowLeft size={20} />
@@ -426,87 +429,87 @@ const GroupInfoModal = ({ initialData ,onSelectConversation, onOpenMembers }) =>
 
                 {/* Nội dung giao diện đổi tên */}
                 <form
-                onSubmit={(e) => {
-                    e.preventDefault(); // ❗ chặn reload trang
-                    handleUpdateName();
-                }}
+                    onSubmit={(e) => {
+                        e.preventDefault(); // ❗ chặn reload trang
+                        handleUpdateName();
+                    }}
                 >
                     <div className="flex flex-col items-center py-4 text-center">
-                    
-                    {/* Khối cụm Avatar 4 góc tròn giống hệt Zalo */}
-                    <div className="relative mb-6 flex items-center justify-center">
-                        <div className="gap-0.5 h-14 w-14 rounded-full overflow-hidden  p-0.5 shadow-sm">
-                            {currentChat?.avatar ? (
-                                <img
-                                    src={`http://localhost:5000${currentChat.avatar}`}
-                                    className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
-                                />
-                            )
-                            : (
-                                <div className="relative size-full">
-                                          {/* Ảnh thành viên 1 */}
-                                    <img 
-                                        src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`} 
-                                        className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20" 
-                                        alt="mem1"
+
+                        {/* Khối cụm Avatar 4 góc tròn giống hệt Zalo */}
+                        <div className="relative mb-6 flex items-center justify-center">
+                            <div className="gap-0.5 h-14 w-14 rounded-full overflow-hidden  p-0.5 shadow-sm">
+                                {currentChat?.avatar ? (
+                                    <img
+                                        src={`http://localhost:5000${currentChat.avatar}`}
+                                        className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
                                     />
-                                          {/* Ảnh thành viên 2 */}
-                                    <img 
-                                        src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`} 
-                                        className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10" 
-                                        alt="mem2"
-                                    />
-                                          {/* Ảnh thành viên 3 */}
-                                    <img 
-                                        src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`} 
-                                        className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30" 
-                                        alt="mem3"
-                                    />
-                                        {/* Vòng tròn số lượng */}
-                                    <div className="absolute bottom-0 right-0.5 size-7 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
-                                        {totalMembers}
-                                    </div>
-                                </div>
-                            )}
+                                )
+                                    : (
+                                        <div className="relative size-full">
+                                            {/* Ảnh thành viên 1 */}
+                                            <img
+                                                src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                                                className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20"
+                                                alt="mem1"
+                                            />
+                                            {/* Ảnh thành viên 2 */}
+                                            <img
+                                                src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                                                className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10"
+                                                alt="mem2"
+                                            />
+                                            {/* Ảnh thành viên 3 */}
+                                            <img
+                                                src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                                                className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30"
+                                                alt="mem3"
+                                            />
+                                            {/* Vòng tròn số lượng */}
+                                            <div className="absolute bottom-0 right-0.5 size-7 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
+                                                {totalMembers}
+                                            </div>
+                                        </div>
+                                    )}
+                            </div>
                         </div>
+
+                        <p className="text-[14px] text-gray-600 leading-relaxed mb-5 px-3">
+                            Bạn có chắc chắn muốn đổi tên nhóm, khi xác nhận tên nhóm mới sẽ hiển thị với tất cả thành viên.
+                        </p>
+
+                        {/* Ô Input nhập tên viền xanh giống ảnh mẫu */}
+                        <input
+                            type="text"
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                            placeholder="Nhập tên nhóm mới"
+                            className="w-full rounded border border-blue-500 px-3 py-2.5 text-[14px] outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+                            autoFocus
+                        />
                     </div>
 
-                    <p className="text-[14px] text-gray-600 leading-relaxed mb-5 px-3">
-                        Bạn có chắc chắn muốn đổi tên nhóm, khi xác nhận tên nhóm mới sẽ hiển thị với tất cả thành viên.
-                    </p>
+                    {/* Khối các nút điều hướng Xác nhận / Hủy dưới cùng */}
 
-                    {/* Ô Input nhập tên viền xanh giống ảnh mẫu */}
-                    <input 
-                        type="text"
-                        value={newGroupName}
-                        onChange={(e) => setNewGroupName(e.target.value)}
-                        placeholder="Nhập tên nhóm mới"
-                        className="w-full rounded border border-blue-500 px-3 py-2.5 text-[14px] outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
-                        autoFocus
-                    />
-                </div>
+                    <div className="flex items-center justify-end gap-3 pt-5 mt-4 border-t border-gray-100">
+                        <button
+                            type="button"
+                            onClick={() => setView('info')}
+                            className="rounded bg-[#e8eaed] px-5 py-2 text-[14px] font-medium text-gray-700 hover:bg-gray-300 transition-colors"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type='submit'
 
-                {/* Khối các nút điều hướng Xác nhận / Hủy dưới cùng */}
-                
-                <div className="flex items-center justify-end gap-3 pt-5 mt-4 border-t border-gray-100">
-                    <button 
-                        type = "button"
-                        onClick={() => setView('info')}
-                        className="rounded bg-[#e8eaed] px-5 py-2 text-[14px] font-medium text-gray-700 hover:bg-gray-300 transition-colors"
-                    >
-                        Hủy
-                    </button>
-                    <button 
-                        type='submit'
-                  
-                        disabled={!newGroupName.trim() || isSubmitting}
-                        className="rounded bg-blue-600 px-5 py-2 text-[14px] font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        {isSubmitting ? "Đang lưu..." : "Xác nhận"}
-                    </button>
-                </div>
+                            disabled={!newGroupName.trim() || isSubmitting}
+                            className="rounded bg-blue-600 px-5 py-2 text-[14px] font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {isSubmitting ? "Đang lưu..." : "Xác nhận"}
+                        </button>
+                    </div>
                 </form>
-                
+
 
             </div>
         );

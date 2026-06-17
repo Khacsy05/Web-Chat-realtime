@@ -18,16 +18,16 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use("/api/auth",routerAuth);
-app.use("/api/user",routerUser);
-app.use("/api/conversation",routerConversation);
-app.use("/api/message",routerMessage);
+app.use("/api/auth", routerAuth);
+app.use("/api/user", routerUser);
+app.use("/api/conversation", routerConversation);
+app.use("/api/message", routerMessage);
 app.use("/uploads", express.static("uploads"));
 const server = http.createServer(app);
 
-const io = new Server(server,{
-  cors:{
-    origin:"http://localhost:5173",
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
     credentials: true,
     methods: ["GET", "POST"],
   }
@@ -64,7 +64,7 @@ io.on("connection", (socket) => {
   });
 
   // ================= TYPING =================
-  socket.on("typing", ({ conversationId, userId ,fullname}) => {
+  socket.on("typing", ({ conversationId, userId, fullname }) => {
     socket.to(conversationId).emit("typing", {
       conversationId,
       userId,
@@ -72,7 +72,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("stop-typing", ({ conversationId, userId,fullname }) => {
+  socket.on("stop-typing", ({ conversationId, userId, fullname }) => {
     socket.to(conversationId).emit("stop-typing", {
       conversationId,
       userId,
@@ -81,7 +81,7 @@ io.on("connection", (socket) => {
   });
 
   // ================= MESSAGE =================
-  socket.on("send-message", ({ from, members, text, conversationId, messageId, name, createdAt }) => {
+  socket.on("send-message", ({ from, members, text, type, image, conversationId, messageId, name, createdAt }) => {
     if (Array.isArray(members)) {
       members.forEach((member) => {
         const memberId = typeof member === 'object' ? String(member._id) : String(member);
@@ -90,7 +90,14 @@ io.on("connection", (socket) => {
           const receiverSocket = onlineUsers.get(String(memberId));
           if (receiverSocket) {
             io.to(receiverSocket).emit("receive-message", {
-              from, text, conversationId, messageId, name, createdAt
+              from,
+              text,
+              type,       // 👈 Gửi thêm type xuống cho client nhận
+              image,      // 👈 Gửi thêm image xuống cho client nhận
+              conversationId,
+              messageId,
+              name,
+              createdAt
             });
           }
         }

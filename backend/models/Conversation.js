@@ -17,14 +17,14 @@ const conversationSchema = mongoose.Schema({
         unique: true,
         sparse: true,
     },
-    lastMessage: 
-    { 
-        type: String, default: "" 
+    lastMessage:
+    {
+        type: String, default: ""
     },
     lastSenderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
     },
     adminGroup: {
         type: mongoose.Schema.Types.ObjectId,
@@ -38,10 +38,16 @@ const conversationSchema = mongoose.Schema({
     avatar: {
         type: String,
         default: null
-    }
+    },
+    clearedBy: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }
+    ]
 },
-{
-     timestamps: true
-})
+    {
+        timestamps: true
+    })
 
 export default mongoose.model("Conversation", conversationSchema);
