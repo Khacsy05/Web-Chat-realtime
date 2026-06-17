@@ -119,10 +119,15 @@ export const createGroupConversation = async (req, res) => {
 export const getUserConversations = async (req, res) => {
   try {
     const user = await User.findOne({ userId: req.user._id });
+    if (!user) {
+      return res.status(400).json({ message: "Không tìm thấy người dùng" });
+    }
 
     const limit = Number(req.query.limit) || 20;
     const after = req.query.after;
+    const q = req.query.q; // 👈 Hứng từ khóa tìm kiếm gửi từ ChatList (Frontend)
 
+    // Bộ lọc mặc định: Lấy các cuộc trò chuyện mà user hiện tại tham gia
     const query = {
       members: user._id
     };
@@ -130,6 +135,30 @@ export const getUserConversations = async (req, res) => {
     if (after) {
       query.updatedAt = { $lt: after };
     }
+
+    // 🔥 XỬ LÝ LOGIC TÌM KIẾM TẠI ĐÂY
+    if (q) {
+      // 1. Tìm các User khác có tên chứa từ khóa q (để xử lý chat 1-1)
+      const matchedUsers = await User.find({
+        fullname: { $regex: q, $options: 'i' }
+      }).select('_id');
+
+      const matchedUserIds = matchedUsers.map(u => u._id);
+
+      // 2. Gom các điều kiện tìm kiếm lại bằng $or
+      query.$or = [
+        // Trường hợp là nhóm: Tìm theo tên nhóm (trường nameGroup) không phân biệt hoa thường
+        { nameGroup: { $regex: q, $options: 'i' } },
+
+        // Trường hợp chat 1-1: Tìm các cuộc trò chuyện mà có thành viên trùng với list user tìm thấy ở trên
+        {
+          isGroup: false,
+          members: { $in: matchedUserIds }
+        }
+      ];
+    }
+
+    // Thực hiện truy vấn dữ liệu từ DB
     const conversations = await Conversation.find(query)
       .populate("members")
       .sort({ updatedAt: -1 })

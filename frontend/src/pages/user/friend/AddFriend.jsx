@@ -8,15 +8,23 @@ import AllFriend from './AllFriend';
 import { Button } from '@/components/ui/button';
 import Modal from '@/components/Modal';
 import ProfileFriend from '../profile/ProfileFriend';
+import useFriendStore from '@/stores/useFriendStore';
 
 const AddFriend = () => {
   const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};
-  const [allUser, setUser] = useState([]);
+  const {
+    allUsers: allUser,
+    sentRequests,
+    fetchUsers,
+    fetchRequests,
+    sendFriendRequest,
+    cancelFriendRequest
+  } = useFriendStore();
+
   const [searchValue, setSearchValue] = useState('');
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 1024
   );
-  const [sentRequests, setSentRequests] = useState([]);
   const [openProfile, setOpenProfile] = useState(null);
   
   const [confirmModal, setConfirmModal] = useState({
@@ -36,36 +44,14 @@ const AddFriend = () => {
 
   const showBackButton = isNarrowFromLayout ?? isNarrowScreen;
 
-  const fetchAllUser = async () => {
-    try {
-      const response = await user.getAllUser();
-      setUser(response.data || []);
-    } catch (error) {
-      console.error('Error fetching friend list:', error);
-    }
-  };
-
   // 1. Hàm gửi kết bạn trực tiếp (Không cần popup, bấm phát ăn ngay)
   const handleFriendRequest = async (idFriend) => {
-    try {
-      const response = await user.friendRequest(idFriend);
-      const requestId = response.data._id;
-      setSentRequests((prev) => [...prev, { idFriend, requestId }]);
-      console.log("Gửi lời mời thành công", response.data);
-    } catch (error) {
-      console.error('Lỗi khi gửi lời mời:', error);
-    }
+    await sendFriendRequest(idFriend);
   };
 
   // 2. Hàm hủy yêu cầu kết bạn (Sẽ được kích hoạt sau khi bấm Đồng ý trên Modal)
   const handleCancelRequest = async (idRequest, idFriend) => {
-    try {
-      await user.cancelRequest(idRequest);
-      setSentRequests((prev) => prev.filter(item => item.idFriend !== idFriend));
-      console.log("Thu hồi lời mời thành công");
-    } catch (error) {
-      console.error('Lỗi khi thu hồi lời mời:', error);
-    }
+    await cancelFriendRequest(idRequest, idFriend);
   };
 
   // 3. Logic nạp dữ liệu và cấu hình hiển thị cho Modal
@@ -99,8 +85,9 @@ const AddFriend = () => {
   };
 
   useEffect(() => {
-    fetchAllUser();
-  }, []);
+    fetchUsers();
+    fetchRequests();
+  }, [fetchUsers, fetchRequests]);
 
   const normalized = searchValue.trim().toLowerCase();
   const filteredFriend = allUser.filter((item) =>
@@ -171,7 +158,7 @@ const AddFriend = () => {
 
           {/* VÒNG LẶP RENDER NGƯỜI DÙNG */}
           {filteredFriend.map((item) => {
-            const requestInfo = sentRequests.find(req => req.idFriend === item._id);
+            const requestInfo = sentRequests.find(req => String(req.to?._id) === String(item._id));
             const isSent = !!requestInfo;
             const userName = item?.fullname || 'Người dùng';
 
@@ -199,7 +186,7 @@ const AddFriend = () => {
                     /* 🌟 SỬA ONCLICK: Bấm thu hồi sẽ gọi qua hàm trung gian để kích hoạt Modal xác nhận */
                     <Button 
                       className="bg-[#e9ecef] text-black hover:bg-[#dee2e6]" 
-                      onClick={() => openConfirmDialog('cancel', requestInfo.requestId, userName, item._id)}
+                      onClick={() => openConfirmDialog('cancel', requestInfo._id, userName, item._id)}
                     >
                       Thu hồi
                     </Button>

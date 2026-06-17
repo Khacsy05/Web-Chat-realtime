@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import useAuthStore from '@/stores/useAuthStore';
 import useChatStore from '@/stores/useChatStore';
-import { 
-  BellOff, 
-  Pin, 
-  UserPlus, 
-  AlarmClock, 
-  Users, 
-  ChevronDown, 
-  ChevronUp, 
-  FileVideo, 
+import {
+  BellOff,
+  Pin,
+  UserPlus,
+  AlarmClock,
+  Users,
+  ChevronDown,
+  ChevronUp,
+  FileVideo,
   Info,
   Pencil,
   Trash2,
@@ -23,11 +23,12 @@ import {
 import conversation from '@/service/conversation';
 import { div } from 'framer-motion/client';
 import AddMembersModal from './AddMembersModal';
+import useMessStore from '@/stores/useMessStore';
 
-const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMembers }) => {
+const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMembers, onOpenMediaArchive }) => {
   const currentUser = useAuthStore((state) => state.user);
   const setConversations = useChatStore((state) => state.setConversations);
-  
+
   // Trạng thái đóng/mở các mục thả xuống (Accordion)
   const [isOpenMedia, setIsOpenMedia] = useState(true);
   const [isOpenFiles, setIsOpenFiles] = useState(true);
@@ -35,7 +36,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
     isOpen: false,
     title: "",
     description: "",
-    onConfirm: () => {}, 
+    onConfirm: () => { },
   });
 
 
@@ -46,19 +47,21 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
   const isGroup = selectedConversation?.isGroup;
   const members = selectedConversation?.members || [];
   const totalMembers = members.length;
-  
+
   const otherMember = members.find(
     (member) => String(member._id) !== String(currentUser?.idUser)
   ) || members[0];
   const userId = currentUser?.idUser;
-  const displayName = isGroup 
-    ? (selectedConversation?.nameGroup || "Nhóm trò chuyện") 
+  const displayName = isGroup
+    ? (selectedConversation?.nameGroup || "Nhóm trò chuyện")
     : (otherMember?.fullname || 'Người dùng');
 
-  const avatarDisplay = isGroup 
+  const avatarDisplay = isGroup
     ? (`http://localhost:5000${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
     : (`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`);
-
+  const messages = useMessStore((state) => state.mess) || [];
+  // Lọc lấy toàn bộ tin nhắn có type là 'image' và không bị thu hồi (isDeleted)
+  const realMediaItems = messages.filter(item => item.type === 'image' && !item.isDeleted).slice(0, 8);
   // Giả lập data danh sách ảnh/video gửi trong đoạn chat để render grid
   const mediaItems = [
     { id: 1, src: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150" },
@@ -82,21 +85,21 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
 
   const handleRemoveMember = async (memberId) => {
     try {
-      const response = await conversation.removeMember(selectedConversation._id,memberId);
+      const response = await conversation.removeMember(selectedConversation._id, memberId);
       if (onSelectConversation) onSelectConversation(null);
-      
+
     } catch (error) {
       console.error("Lỗi khi roi nhom:", error);
     }
   };
-  
 
-  const openConfirmDialog = (type,memberId) => {
+
+  const openConfirmDialog = (type, memberId) => {
     let config = {
       isOpen: true,
       title: "",
       description: "",
-      onConfirm: () => {}
+      onConfirm: () => { }
     };
 
     if (type === 'deleteConversation') {
@@ -104,8 +107,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
       config.description = `Toàn bộ tin nhắn sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa?`;
       // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
       config.onConfirm = () => handleDeleteConversation();
-    } 
-    else if(type === 'removeMember'){
+    }
+    else if (type === 'removeMember') {
       config.title = "Xác nhận rời nhóm";
       config.description = `Bạn sẽ không thể xem lại tin nhắn sau khi rời`;
       // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
@@ -128,7 +131,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
 
       {/* 2. Phần Profile User / Group */}
       <div className="flex flex-col items-center border-b-[8px] border-[#f4f5f7] py-6 px-4 text-center">
-        
+
         {/* Khung chứa Avatar (Nếu là nhóm thì render avatar xếp chồng như ảnh) */}
         <div className="relative mb-3 size-[72px] shrink-0 flex items-center justify-center">
           {isGroup ? (
@@ -139,32 +142,32 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
                 className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
               />
             )
-            : (
-            <div className="relative size-full">
-              {/* Ảnh thành viên 1 */}
-              <img 
-                src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`} 
-                className="absolute top-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-20" 
-                alt="mem1"
-              />
-              {/* Ảnh thành viên 2 */}
-              <img 
-                src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`} 
-                className="absolute top-0 right-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-10" 
-                alt="mem2"
-              />
-              {/* Ảnh thành viên 3 */}
-              <img 
-                src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`} 
-                className="absolute bottom-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-30" 
-                alt="mem3"
-              />
-              {/* Vòng tròn số lượng */}
-              <div className="absolute bottom-0 right-1 size-9 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
-                {totalMembers}
-              </div>
-            </div>
-            )
+              : (
+                <div className="relative size-full">
+                  {/* Ảnh thành viên 1 */}
+                  <img
+                    src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                    className="absolute top-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-20"
+                    alt="mem1"
+                  />
+                  {/* Ảnh thành viên 2 */}
+                  <img
+                    src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                    className="absolute top-0 right-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-10"
+                    alt="mem2"
+                  />
+                  {/* Ảnh thành viên 3 */}
+                  <img
+                    src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                    className="absolute bottom-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-30"
+                    alt="mem3"
+                  />
+                  {/* Vòng tròn số lượng */}
+                  <div className="absolute bottom-0 right-1 size-9 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
+                    {totalMembers}
+                  </div>
+                </div>
+              )
           ) : (
             <img
               src={avatarDisplay}
@@ -201,7 +204,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
               <span className="text-[12px] text-gray-600 font-medium leading-tight">Ghim hội thoại</span>
             </button>
 
-            <button 
+            <button
               className="flex flex-col items-center gap-1.5 text-center group"
               onClick={() => setOpenAddMembers(true)}
             >
@@ -250,7 +253,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
         <>
           {/* Mục Thả xuống: Thành viên nhóm */}
           <div className="flex flex-col border-b border-gray-100">
-            <button 
+            <button
               onClick={() => setIsOpenMembers(!isOpenMembers)}
               className="flex items-center justify-between px-4 py-3.5 text-left font-semibold text-[15px] text-[#1f2328] hover:bg-gray-50"
             >
@@ -274,7 +277,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
 
           {/* Mục Thả xuống: Bảng tin nhóm */}
           <div className="flex flex-col border-b-[8px] border-[#f4f5f7]">
-            <button 
+            <button
               onClick={() => setIsOpenNewsboard(!isOpenNewsboard)}
               className="flex items-center justify-between px-4 py-3.5 text-left font-semibold text-[15px] text-[#1f2328] hover:bg-gray-50"
             >
@@ -303,7 +306,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
             <AlarmClock size={19} className="text-gray-500" />
             <span className="text-[#1f2328] font-medium flex-1">Danh sách nhắc hẹn</span>
           </button>
-          
+
           <button className="flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors">
             <Users size={19} className="text-gray-500" />
             <span className="text-[#1f2328] font-medium flex-1">20 nhóm chung</span>
@@ -313,7 +316,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
 
       {/* 4. Mục Ảnh/Video (Dùng chung cho cả 2 nhưng đổi border dưới cho mượt UI tùy loại view) */}
       <div className={`flex flex-col ${isGroup ? 'border-b border-gray-100' : 'border-b-[8px] border-[#f4f5f7]'}`}>
-        <button 
+        <button
           onClick={() => setIsOpenMedia(!isOpenMedia)}
           className="flex items-center justify-between px-4 py-3.5 text-left font-semibold text-[15px] text-[#1f2328] hover:bg-gray-50"
         >
@@ -324,13 +327,15 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
         {isOpenMedia && (
           <div className="px-4 pb-4 animate-fade-in">
             <div className="grid grid-cols-4 gap-1.5">
-              {mediaItems.map((item) => (
+              {realMediaItems?.map((item) => (
                 <div key={item.id} className="aspect-square w-full overflow-hidden rounded-sm bg-gray-100 border border-gray-200/50 cursor-pointer hover:opacity-90">
-                  <img src={item.src} alt="media" className="h-full w-full object-cover" />
+                  <img src={`http://localhost:5000${item?.image}`} alt="media" className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>
-            <button className="mt-3 flex h-9 w-full items-center justify-center rounded-md bg-[#f1f3f5] text-[14px] font-semibold text-[#1f2328] hover:bg-[#e2e6ea] transition-colors">
+            <button
+              onClick={() => onOpenMediaArchive()}
+              className="mt-3 flex h-9 w-full items-center justify-center rounded-md bg-[#f1f3f5] text-[14px] font-semibold text-[#1f2328] hover:bg-[#e2e6ea] transition-colors">
               Xem tất cả
             </button>
           </div>
@@ -339,7 +344,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
 
       {/* 5. Mục File đính kèm (Dùng chung) */}
       <div className="flex flex-col pb-6">
-        <button 
+        <button
           onClick={() => setIsOpenFiles(!isOpenFiles)}
           className="flex items-center justify-between px-4 py-3.5 text-left font-semibold text-[15px] text-[#1f2328] hover:bg-gray-50"
         >
@@ -368,11 +373,11 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
         )}
       </div>
 
-      
+
       {/* 6. Nút Xóa lịch sử trò chuyện */}
       <div className="mt-auto border-t-[8px] border-[#f4f5f7] flex flex-col text-[14px]">
-        <button 
-          onClick={() => openConfirmDialog('deleteConversation',null)}
+        <button
+          onClick={() => openConfirmDialog('deleteConversation', null)}
           className="flex items-center gap-3 px-4 py-3.5 text-left hover:bg-red-50/50 transition-colors text-[#e03131]"
         >
           <Trash2 size={19} className="text-[#e03131] stroke-[1.8]" />
@@ -382,8 +387,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation ,onOpenMember
 
       {isGroup && (
         <div className="mt-auto border-t-[8px] border-[#f4f5f7] flex flex-col text-[14px]">
-          <button 
-            onClick={() => openConfirmDialog('removeMember',userId)}
+          <button
+            onClick={() => openConfirmDialog('removeMember', userId)}
             className="flex items-center gap-3 px-4 py-3.5 text-left hover:bg-red-50/50 transition-colors text-[#e03131]"
           >
             <LogOut size={19} className="text-[#e03131] stroke-[1.8]" />

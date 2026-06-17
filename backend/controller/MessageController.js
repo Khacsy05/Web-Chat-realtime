@@ -169,7 +169,7 @@ export const sendImage = async (req, res) => {
 
     // update last message conversation
     await Conversation.findByIdAndUpdate(conversationId, {
-      lastMessage: imageUrl,
+      lastMessage: "[Hình ảnh]",
       lastSenderId: sender,
       updatedAt: Date.now()
     });
