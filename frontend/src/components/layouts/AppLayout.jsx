@@ -1,8 +1,21 @@
+import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import useAuthStore from "@/stores/useAuthStore";
+import socket from "@/lib/socket";
 
 export function AppLayout() {
+  const currentUser = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    if (currentUser?.idUser) {
+      if (!socket.connected) {
+        socket.connect();
+      }
+      socket.emit("join", String(currentUser.idUser));
+    }
+  }, [currentUser?.idUser]);
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
       <Header />

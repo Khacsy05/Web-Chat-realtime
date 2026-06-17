@@ -10,6 +10,7 @@ import useAuthStore from '@/stores/useAuthStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Lock, User, Loader2 } from 'lucide-react'; // 🌟 Thêm các icon đẹp
+import socket from '@/lib/socket';
 
 const authSchema = yup.object().shape({
     username: yup.string().required("Vui lòng nhập tên tài khoản"),
@@ -24,7 +25,7 @@ const EMPTY_FORM = {
 const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const {
         register,
         handleSubmit,
@@ -34,7 +35,7 @@ const Login = () => {
         mode: "onSubmit",
         defaultValues: EMPTY_FORM
     });
-    
+
     const navigate = useNavigate();
     const setAuth = useAuthStore((state) => state.setAuth)
 
@@ -44,20 +45,21 @@ const Login = () => {
             const respone = await auth.login(data);
             setAuth(respone.data.user, respone.data.token)
             toast.success("Đăng nhập thành công 🎉")
+            socket.emit("join", String(respone.data.user.idUser));
             navigate('/')
         } catch (error) {
             console.error("Login failed:", error);
             const backendMessage =
-              error?.data?.message ||
-              error?.response?.data?.message ||
-              "Tài khoản hoặc mật khẩu không chính xác";
+                error?.data?.message ||
+                error?.response?.data?.message ||
+                "Tài khoản hoặc mật khẩu không chính xác";
             toast.error(backendMessage);
         } finally {
             setIsLoading(false);
         }
     }
 
-    return (  
+    return (
         <div className="flex min-h-screen w-full items-center justify-center bg-[#f4f5f7] p-4 select-none">
             <Card className="w-full max-w-[450px] shadow-xl border-gray-100 bg-white rounded-2xl overflow-hidden animate-fade-in">
                 {/* Header Đăng nhập thiết kế lại hoành tráng hơn */}
@@ -72,7 +74,7 @@ const Login = () => {
 
                 <CardContent className="px-8 pb-8">
                     <form onSubmit={handleSubmit(handleLogin)} className="space-y-5">
-                        
+
                         {/* 1. Trường Username */}
                         <div className="space-y-1.5">
                             <label className="text-sm font-semibold text-gray-700">Tên đăng nhập</label>
@@ -96,7 +98,7 @@ const Login = () => {
                             <label className="text-sm font-semibold text-gray-700">Mật khẩu</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400" />
-                                <Input 
+                                <Input
                                     {...register("password")}
                                     type={showPassword ? "text" : "password"} // Ẩn hiện ký tự mật khẩu
                                     placeholder="••••••••"
@@ -129,8 +131,8 @@ const Login = () => {
 
                         {/* 4. Khối nút bấm Action */}
                         <div className="flex items-center gap-3 pt-2">
-                            
-                            <Button 
+
+                            <Button
                                 type="submit"
                                 className="h-11 flex-1 rounded-lg bg-[#0561ff] font-semibold text-white hover:bg-[#0052db] transition shadow-md disabled:opacity-70"
                                 disabled={isLoading}
@@ -148,7 +150,7 @@ const Login = () => {
 
                     </form>
                 </CardContent>
-            </Card>  
+            </Card>
         </div>
     )
 }

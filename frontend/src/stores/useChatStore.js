@@ -36,7 +36,7 @@ const useChatStore = create((set, get) => ({
   },
 
   /* ================= CREATE GROUP ================= */
-   onCreateGroup: (conversation) => {
+  onCreateGroup: (conversation) => {
     set((state) => ({
       conversations: [
         conversation,
@@ -80,10 +80,12 @@ const useChatStore = create((set, get) => ({
   },
 
   /* ================= DELETE GROUP ================= */
-  onConversationDeleted: (conversationId) => {
+  onConversationCleared: ({ conversationId }) => {
     set((state) => ({
-      conversations: state.conversations.filter(
-        (c) => String(c._id) !== String(conversationId)
+      conversations: state.conversations.map((c) =>
+        String(c._id) === String(conversationId)
+          ? { ...c, lastMessage: "" }
+          : c
       ),
     }));
   },
@@ -91,7 +93,7 @@ const useChatStore = create((set, get) => ({
     set((state) => ({
       conversations: state.conversations.map((c) =>
         String(c._id) === String(conversationId)
-          ? { ...c, avatar: avatar } 
+          ? { ...c, avatar: avatar }
           : c
       ),
     }));
@@ -100,7 +102,7 @@ const useChatStore = create((set, get) => ({
     set((state) => ({
       conversations: state.conversations.map((c) =>
         String(c._id) === String(conversationId)
-          ? { ...c, nameGroup: nameGroup } 
+          ? { ...c, nameGroup: nameGroup }
           : c
       ),
     }));
@@ -114,7 +116,7 @@ const useChatStore = create((set, get) => ({
     socket.off("member-updated", store.onMemberUpdated);
     socket.off("conversation-added", store.onConversationAdded);
     socket.off("member-removed", store.onMemberRemoved);
-    socket.off("conversation-deleted", store.onConversationDeleted);
+    socket.off("conversation-cleared", store.onConversationCleared);
     socket.off("group-avatar-updated", store.onUpdateAvatarConversation);
     socket.off("group-name-updated", store.onUpdateNameGroup);
 
@@ -123,7 +125,7 @@ const useChatStore = create((set, get) => ({
     socket.on("member-updated", store.onMemberUpdated);
     socket.on("conversation-added", store.onConversationAdded);
     socket.on("member-removed", store.onMemberRemoved);
-    socket.on("conversation-deleted", store.onConversationDeleted);
+    socket.on("conversation-cleared", store.onConversationCleared);
     socket.on("group-avatar-updated", store.onUpdateAvatarConversation);
     socket.on("group-name-updated", store.onUpdateNameGroup);
   },

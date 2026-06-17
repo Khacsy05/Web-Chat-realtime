@@ -1,22 +1,26 @@
 import mongoose from "mongoose";
 
 const messageSchema = mongoose.Schema({
-    conversationId : {
+    conversationId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Conversation"
     },
-    sender : {
+    sender: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
     },
     content: {
         type: String,
-        required: true
+        required: false
     },
     type: {
         type: String,
         enum: ["text", "image", "file"],
         default: "text"
+    },
+    image: {
+        type: String,
+        default: null
     },
 
     status: {
@@ -24,6 +28,16 @@ const messageSchema = mongoose.Schema({
         enum: ["sent", "delivered", "seen"],
         default: "sent"
     },
+    deletedBy: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }
+    ],
+    isDeleted: {
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true })
 
 export default mongoose.model("Message", messageSchema);

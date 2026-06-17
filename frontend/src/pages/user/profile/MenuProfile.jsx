@@ -3,7 +3,7 @@ import GroupInfoModal from './GroupInfoModal';
 import ProfileFriend from './ProfileFriend';
 import GroupMembersPanel from '../messeage/GroupMembersPanel';
 
-const MenuProfile = ({ type, data, onSelectConversation ,selectedConversation}) => {
+const MenuProfile = ({ type, data, onSelectConversation ,selectedConversation,onMobileBack}) => {
   const [view, setView] = useState("profile"); 
 
   // 1. Nếu là cuộc trò chuyện Nhóm
@@ -11,7 +11,12 @@ const MenuProfile = ({ type, data, onSelectConversation ,selectedConversation}) 
     return (
       <> {/* Thêm thẻ bọc Fragment ở đây */}
         {view === "profile" && (
-           <GroupInfoModal initialData={data} onSelectConversation={onSelectConversation} onOpenMembers={() => setView("members")}/>
+           <GroupInfoModal 
+            initialData={data} 
+            onSelectConversation={onSelectConversation} 
+            onOpenMembers={() => setView("members")}
+            onMobileBack={onMobileBack}
+          />
         )}
 
         {view === "members" && (

@@ -1,18 +1,17 @@
 import { Input } from '@/components/ui/input';
-import message from '@/service/message';
 import useAuthStore from '@/stores/useAuthStore';
+import useMessStore from '@/stores/useMessStore';
 import { ArrowLeft, MoreHorizontal, PanelLeft, Search, Send, ThumbsUp } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import socket from '@/lib/socket';
+import socket from '@/lib/socket'; // Keep socket since it emits "join" and status requests in this component
 import Modal from '@/components/Modal';
 import MenuProfile from '../profile/MenuProfile';
-import Profile from '../profile/profile';
-import ProfileFriend from '../profile/ProfileFriend';
-
+import { Image as ImageIcon } from "lucide-react";
+import ImageViewer from '@/components/ImageViewer';
 
 const messSchema = yup.object().shape({
   content: yup.string().required("vui long nhap noi dung"),
@@ -33,23 +32,39 @@ const ConversationView = ({
   onSelectConversation
 }) => {
   const currentUser = useAuthStore((state) => state.user);
-  const [mess, setMess] = useState([]);
+
+  const {
+    mess,
+    isLoadingMessages,
+    loadedConversationId,
+    cursor,
+    hasMore,
+    loadingMore,
+    typingUser,
+    fetchMessages,
+    sendMessage,
+    revokeMessage,
+    deleteMessageForMe,
+    sendImage,
+    sendTyping,
+    setupSocketListeners,
+    clearMessages,
+  } = useMessStore();
+
+  const [hoverMsgId, setHoverMsgId] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
   const chatBodyRef = useRef(null);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [loadedConversationId, setLoadedConversationId] = useState(null);
-  const [cursor, setCursor] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const loadRef = useRef(null);
   const shouldScrollToBottomRef = useRef(true);
   const scrollSnapshotRef = useRef({ prevScrollHeight: 0, prevScrollTop: 0 });
-  // Track which conversation the currently DISPLAYED messages belong to
-  const displayedConversationIdRef = useRef(null);
+
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < MD_PX
   );
   const LIKE_EMOJI = "👍";
   const [openProfile, setOpenProfile] = useState(null);
+  const [viewImage, setViewImage] = useState(null);
+
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MD_PX - 1}px)`);
     const handler = () => setIsNarrowScreen(mq.matches);
@@ -60,60 +75,12 @@ const ConversationView = ({
 
   const showMobileBack = Boolean(onMobileBack && isNarrowScreen && selectedConversation);
 
-  useEffect(() => {
-    if (!currentUser?.idUser) return;
-    socket.emit("join", String(currentUser.idUser));
-  }, [currentUser?.idUser]);
-  
 
-  const [typingUser, setTypingUser] = useState(null);
-  const typingTimeoutRef = useRef(null);
+
   const thisMember =
     selectedConversation?.members?.find(
       (member) => String(member._id) === String(currentUser?.idUser)
     );
-  
-  useEffect(() => {
-    const handleTyping = (payload) => {
-      setTypingUser({
-        userId: payload.userId ,
-        fullname: payload.fullname || "Ai đó",
-      });
-    };
-
-    const handleStopTyping = () => {
-      setTypingUser(null);
-    };
-
-    socket.on("typing", handleTyping);
-    socket.on("stop-typing", handleStopTyping);
-
-    return () => {
-      socket.off("typing", handleTyping);
-      socket.off("stop-typing", handleStopTyping);
-    };
-  }, []);
-
-  const handleTyping = () => {
-    if (!selectedConversation?._id || !currentUser?.idUser) return;
-    if (!thisMember?.fullname) return;
-
-    socket.emit("typing", {
-      conversationId: selectedConversation._id,
-      userId: currentUser.idUser,
-      fullname: thisMember.fullname
-    });
-
-    clearTimeout(typingTimeoutRef.current);
-
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit("stop-typing", {
-        conversationId: selectedConversation._id,
-        userId: currentUser.idUser,
-        fullname: thisMember.fullname
-      });
-    }, 1000);
-  };
 
   const {
     register,
@@ -128,98 +95,21 @@ const ConversationView = ({
 
   const content = watch("content");
 
-  const fetchMessage = async (conversationId, isReset = false) => {
-    if (!conversationId) return;
-    if (loadingMore || (!hasMore && !isReset)) return;
-
-    if (isReset) {
-      setIsLoadingMessages(true);
-      setCursor(null);
-      setLoadedConversationId(null);
-    }
-
-    setLoadingMore(true);
-
-    try {
-      const response = await message.getMessage(conversationId, {
-        limit: 15,
-        before: isReset ? null : cursor
-      });
-
-      const newMessages = response.data.items;
-
-      if (!isReset && chatBodyRef.current) {
-        shouldScrollToBottomRef.current = false;
-        scrollSnapshotRef.current = {
-          prevScrollHeight: chatBodyRef.current.scrollHeight,
-          prevScrollTop: chatBodyRef.current.scrollTop
-        };
-      } else {
-        shouldScrollToBottomRef.current = true;
-      }
-
-      setMess(prev => {
-        if (isReset) {
-          // FIX: Chỉ replace khi data về, KHÔNG xóa sớm nữa
-          // => scroll bar giữ nguyên chiều cao cho đến khi data mới render xong
-          return newMessages;
-        }
-
-        const existingIds = new Set(prev.map(m => String(m.messageId)));
-        const uniqueNewMessages = newMessages.filter(m => !existingIds.has(String(m.messageId)));
-        return [...uniqueNewMessages, ...prev];
-      });
-
-      setCursor(response.data.nextCursor);
-      setHasMore(response.data.hasMore);
-      setLoadedConversationId(String(conversationId));
-      displayedConversationIdRef.current = String(conversationId);
-    } catch (error) {
-      console.error('Error fetching message:', error);
-    } finally {
-      setIsLoadingMessages(false);
-      setLoadingMore(false);
-    }
-  };
-
+  // Effect to load messages and set up socket listeners on conversation change
   useEffect(() => {
     const conversationId = selectedConversation?._id;
-    if (!conversationId) return;
+    if (!conversationId) {
+      clearMessages();
+      return;
+    }
 
-    // FIX: KHÔNG gọi setMess([]) ở đây nữa!
-    // Giữ nguyên mess cũ → scroll bar không bị collapse → không bị nhảy
-    // Tin nhắn cũ sẽ bị ẩn bằng opacity trong lúc chờ, và replace khi data về
-    setHasMore(true);
-    setCursor(null);
-    setLoadedConversationId(null);
     shouldScrollToBottomRef.current = true;
+    fetchMessages(conversationId, true);
 
-    fetchMessage(conversationId, true);
-
-    const onReceive = (payload) => {
-      onMessageEvent?.({
-        conversationId: String(payload.conversationId),
-        senderId: payload.from,
-        content: payload.text,
-        createdAt: new Date().toISOString(),
-      });
-      if (String(payload.conversationId) !== String(selectedConversation._id)) return;
-
-      setMess((prev) => {
-        if (prev.some((m) => String(m.messageId) === String(payload.messageId))) return prev;
-        return [...prev, {
-          messageId: payload.messageId,
-          senderId: payload.from,
-          name: payload.name ?? "Nguoi dung",
-          content: payload.text,
-          createdAt: payload.createdAt || new Date().toISOString()
-        }];
-      });
+    const cleanup = setupSocketListeners(conversationId, onMessageEvent);
+    return () => {
+      cleanup();
     };
-
-    socket.on("receive-message", onReceive);
-    return () => socket.off("receive-message", onReceive);
-
   }, [selectedConversation?._id]);
 
   useLayoutEffect(() => {
@@ -250,7 +140,14 @@ const ConversationView = ({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !isLoadingMessages) {
-          fetchMessage(selectedConversation._id, false);
+          if (chatBodyRef.current) {
+            shouldScrollToBottomRef.current = false;
+            scrollSnapshotRef.current = {
+              prevScrollHeight: chatBodyRef.current.scrollHeight,
+              prevScrollTop: chatBodyRef.current.scrollTop
+            };
+          }
+          fetchMessages(selectedConversation._id, false);
         }
       },
       { threshold: 0.5 }
@@ -265,15 +162,14 @@ const ConversationView = ({
       (member) => String(member._id) !== String(currentUser?.idUser)
     ) || selectedConversation?.members?.[0];
 
-  
   const isGroup = selectedConversation?.isGroup;
   const members = selectedConversation?.members || [];
   const totalMembers = members.length;
-  const displayName = isGroup 
-    ? (selectedConversation?.nameGroup || "Nhóm trò chuyện") 
+  const displayName = isGroup
+    ? (selectedConversation?.nameGroup || "Nhóm trò chuyện")
     : (otherMember?.fullname || 'Người dùng');
 
-  const avatarDisplay = isGroup 
+  const avatarDisplay = isGroup
     ? (`http://localhost:5000${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
     : (`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`);
   const userName = thisMember?.fullname || 'Nguoi dung';
@@ -288,13 +184,13 @@ const ConversationView = ({
         userIds.reduce((acc, userId) => {
           acc[userId] = true;
           return acc;
-          }, {})
+        }, {})
       );
-    }); 
+    });
 
     socket.on("user-status", ({ userId, isActive }) => {
       setOnlineMap(prev => ({
-         ...prev,
+        ...prev,
         [userId]: isActive
       }));
     });
@@ -304,7 +200,9 @@ const ConversationView = ({
       socket.off("user-status");
     };
   }, []);
+
   const isOnline = !!onlineMap[otherMember?._id];
+
   const getLastActiveText = (lastActive) => {
     if (!lastActive) return 'Offline';
 
@@ -323,65 +221,63 @@ const ConversationView = ({
     const diffDays = Math.floor(diffHours / 24);
     return `Hoạt động ${diffDays} ngày trước`;
   };
+
   const handleSendMess = async (data) => {
-    try {
-      if (!selectedConversation?._id || !currentUser?.idUser) {
-        toast.error("Không tìm thấy cuộc trò chuyện để gửi tin nhắn");
-        return;
-      }
+    const contentToSend = String(data?.content || "").trim();
+    if (!contentToSend) return;
 
-      const contentToSend = String(data?.content || "").trim();
-      if (!contentToSend) return;
+    const success = await sendMessage({
+      conversationId: selectedConversation?._id,
+      content: contentToSend,
+      currentUser,
+      userName: thisMember?.fullname,
+      members: selectedConversation?.members,
+      onMessageEvent
+    });
 
-      if (!socket.connected) {
-        socket.connect();
-      }
-      const res = await message.sendMessage({
-        conversationId,
-        content: contentToSend
-      });
-
+    if (success) {
       reset();
       shouldScrollToBottomRef.current = true;
-      setMess((prev) => [
-        ...prev,
-        {
-          messageId: res.data._id,
-          senderId: currentUser.idUser,
-          name: userName || "Nguoi dung",
-          content: data.content,
-          createdAt: res.data.createdAt || new Date().toISOString() // Thêm dòng này
-        }
-      ]);
-
-      onMessageEvent?.({
-        conversationId: String(selectedConversation._id),
-        senderId: currentUser.idUser,
-        content: data.content,
-        createdAt: new Date().toISOString(),
-      });
-
-      socket.emit("send-message", {
-        from: String(currentUser.idUser),
-        members: selectedConversation?.members,
-        text: data.content,
-        conversationId: String(conversationId),
-        messageId: String(res.data._id),
-        name: userName || "Nguoi dung",
-        createdAt: res.data.createdAt
-      });
-
-    } catch (error) {
-      toast.error("Gui tin nhan that bai");
     }
   };
 
-  // FIX: Tính toán xem tin nhắn đang hiển thị có phải của conversation hiện tại không
-  // Nếu không phải → ẩn bằng opacity để tránh hiện tin nhắn sai người
+
+  const handleSendImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const success = await sendImage({
+      conversationId: selectedConversation?._id,
+      image: file,
+      currentUser,
+      userName: thisMember?.fullname,
+      members: selectedConversation?.members,
+      onMessageEvent
+    });
+    if (success) {
+      shouldScrollToBottomRef.current = true;
+      e.target.value = "";
+    }
+  };
+
+  const handleTyping = () => {
+    if (!selectedConversation?._id || !currentUser?.idUser || !thisMember?.fullname) return;
+    sendTyping(selectedConversation._id, currentUser.idUser, thisMember.fullname);
+  };
+
+  const handleRevokeMessage = async (msgId) => {
+    await revokeMessage(msgId, selectedConversation?._id);
+    setActiveMenuId(null);
+  };
+
+  const handleDeleteMessageForMe = async (msgId) => {
+    await deleteMessageForMe(msgId);
+    setActiveMenuId(null);
+  };
+
   const isShowingStaleMessages =
     isLoadingMessages &&
-    displayedConversationIdRef.current !== null &&
-    displayedConversationIdRef.current !== String(selectedConversation?._id);
+    loadedConversationId !== null &&
+    loadedConversationId !== String(selectedConversation?._id);
 
 
   const formatChatDate = (dateString) => {
@@ -401,7 +297,7 @@ const ConversationView = ({
     if (isYesterday) {
       return `Hôm qua, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
-    
+
     // Nếu là các ngày trước đó: Hiển thị Ngày/Tháng và Giờ
     return `${d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
@@ -428,54 +324,54 @@ const ConversationView = ({
             )}
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-[18px] font-semibold text-[#3b5bdb]">
               <button className={`relative size-full ${isGroup ? 'cursor-default' : 'cursor-pointer'}`} onClick={() => {
-                if(isGroup) {
+                if (isGroup) {
                   setOpenProfile(selectedConversation)
                 }
-                else{
+                else {
                   setOpenProfile(otherMember)
                 }
-                }}>
-                  {isGroup ? (
-                    selectedConversation?.avatar ? (
-                      <img
-                        src={`http://localhost:5000${selectedConversation.avatar}`}
-                        alt={displayName}
-                        className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
-                      />
-                    )
-                    : (
-                    <div className="relative size-full">
-                      {/* Ảnh thành viên 1 */}
-                      <img 
-                        src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`} 
-                        className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20" 
-                        alt="mem1"
-                      />
-                      {/* Ảnh thành viên 2 */}
-                      <img 
-                        src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`} 
-                        className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10" 
-                        alt="mem2"
-                      />
-                      {/* Ảnh thành viên 3 */}
-                      <img 
-                        src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`} 
-                        className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30" 
-                        alt="mem3"
-                      />
-                      {/* Vòng tròn số lượng */}
-                      <div className="absolute bottom-0 right-0.5 size-7 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
-                        {totalMembers}
-                      </div>
-                    </div>
-                    )
-                  ) : (
+              }}>
+                {isGroup ? (
+                  selectedConversation?.avatar ? (
                     <img
-                      src={avatarDisplay}
+                      src={`http://localhost:5000${selectedConversation.avatar}`}
                       alt={displayName}
                       className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
                     />
-                  )}
+                  )
+                    : (
+                      <div className="relative size-full">
+                        {/* Ảnh thành viên 1 */}
+                        <img
+                          src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                          className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20"
+                          alt="mem1"
+                        />
+                        {/* Ảnh thành viên 2 */}
+                        <img
+                          src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                          className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10"
+                          alt="mem2"
+                        />
+                        {/* Ảnh thành viên 3 */}
+                        <img
+                          src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                          className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30"
+                          alt="mem3"
+                        />
+                        {/* Vòng tròn số lượng */}
+                        <div className="absolute bottom-0 right-0.5 size-7 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
+                          {totalMembers}
+                        </div>
+                      </div>
+                    )
+                ) : (
+                  <img
+                    src={avatarDisplay}
+                    alt={displayName}
+                    className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
+                  />
+                )}
               </button>
             </div>
             <div className="min-w-0 flex-1">
@@ -548,14 +444,14 @@ const ConversationView = ({
           } else {
             const currentMessageDate = new Date(item.createdAt).toDateString();
             const previousMessageDate = new Date(mess[index - 1].createdAt).toDateString();
-            
+
             // Nếu ngày của tin nhắn này khác ngày của tin nhắn trước đó
             if (currentMessageDate !== previousMessageDate) {
               showDateDivider = true;
             }
           }
-          
-  
+
+
           if (index === mess.length - 1) {
             // Nếu là tin nhắn mới nhất/cuối cùng của cuộc trò chuyện -> Hiện giờ
             showTimeUnderMessage = true;
@@ -571,7 +467,7 @@ const ConversationView = ({
             // HOẶC tin nhắn tiếp theo đã sang ngày khác (để chốt thời gian cho ngày cũ)
             if (isNextFromDifferentUser || isNextDay) {
               showTimeUnderMessage = true;
-            } 
+            }
           }
 
           return (
@@ -584,30 +480,91 @@ const ConversationView = ({
                   </span>
                 </div>
               )}
-              <div className={`mb-3 flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+              <div
+                className={`mb-3 flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                onMouseEnter={() => setHoverMsgId(item.messageId)}
+                onMouseLeave={() => {
+                  setHoverMsgId(null);
+                  setActiveMenuId(null);
+                }}
+              >
                 {!isMe && (index === 0 || String(mess[index - 1].senderId) !== String(item.senderId)) && (
                   <div className="mb-1 text-xs text-muted-foreground">
                     {item.name}
                   </div>
                 )}
-                <div
-                  className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap ${
-                    isMe
-                      ? 'rounded-tr-none bg-[#3b5bdb] text-white'
-                      : 'rounded-tl-none bg-[#f1f3f5] text-[#1f2328]'
-                  }`}
-                >
-                  {item.content}
+
+                <div className={`relative flex items-center gap-2 max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className="break-words whitespace-pre-wrap max-w-full">
+                    {item.isDeleted ? (
+                      // 1. Trường hợp tin nhắn đã thu hồi
+                      <div className="rounded-2xl px-3 py-2 text-sm bg-gray-100 text-gray-400 italic border border-gray-200">
+                        Tin nhắn đã được thu hồi
+                      </div>
+                    ) : item.type === 'image' ? (
+                      // 2. Trường hợp là ẢNH: Không có bg, không có padding, chỉ có border-radius riêng của ảnh
+                      <img
+                        src={`http://localhost:5000${item.image}`}
+                        alt="image"
+                        className="w-[200px] h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-90 transition shadow-sm block"
+                        onClick={() => setViewImage(`http://localhost:5000${item.image}`)}
+                      />
+                    ) : (
+                      // 3. Trường hợp tin nhắn VĂN BẢN: Có màu nền tương ứng theo người gửi
+                      <div
+                        className={`rounded-2xl px-3 py-2 text-sm ${isMe
+                          ? 'rounded-tr-none bg-[#3b5bdb] text-white'
+                          : 'rounded-tl-none bg-[#f1f3f5] text-[#1f2328]'
+                          }`}
+                      >
+                        {item.content}
+                      </div>
+                    )}
+                  </div>
+
+                  {!item.isDeleted && hoverMsgId === item.messageId && (
+                    <div className="relative flex items-center shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === item.messageId ? null : item.messageId);
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"
+                        title="Tùy chọn"
+                      >
+                        <MoreHorizontal size={16} />
+                      </button>
+
+                      {activeMenuId === item.messageId && (
+                        <div className={`absolute bottom-8 z-50 min-w-[130px] rounded-lg border bg-white p-1 shadow-lg ${isMe ? 'right-0' : 'left-0'}`}>
+                          {isMe && (
+                            <button
+                              onClick={() => handleRevokeMessage(item.messageId)}
+                              className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors font-medium cursor-pointer"
+                            >
+                              Thu hồi
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteMessageForMe(item.messageId)}
+                            className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer"
+                          >
+                            Xóa ở phía tôi
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {showTimeUnderMessage && item.createdAt && (
-                <div className="mt-0.5 px-1 text-[10px] text-gray-400 font-normal animate-fade-in">
-                  {formatMessageTime(item.createdAt)}
-                </div>
-        )}
+                  <div className="mt-0.5 px-1 text-[10px] text-gray-400 font-normal animate-fade-in">
+                    {formatMessageTime(item.createdAt)}
+                  </div>
+                )}
               </div>
             </div>
-            );
+          );
         })}
       </div>
 
@@ -619,22 +576,36 @@ const ConversationView = ({
               <MoreHorizontal />
             </span>
           </div>
-      )}
+        )}
       <div className="shrink-0 border-t bg-white p-3">
         <form onSubmit={handleSubmit(handleSendMess)}>
           <div className="flex items-center gap-2">
+            {/* NÚT GỬI ẢNH */}
+            <label className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-[#edf2ff] text-[#3b5bdb] hover:bg-[#e0e7ff]">
+              <ImageIcon size={20} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleSendImage}
+              />
+            </label>
+
+            {/* INPUT TEXT */}
             <Input
               className="h-10 flex-1"
               placeholder="Nhap tin nhan..."
               {...register("content")}
               onKeyDown={handleTyping}
             />
+
+            {/* NÚT SEND / LIKE */}
             {content?.trim() ? (
               <button
                 type="submit"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf2ff] text-[#3b5bdb]"
               >
-                <Send size={20} strokeWidth={2.5} fill="#4f6fef" className='text-blue-500' />
+                <Send size={20} strokeWidth={2.5} fill="#4f6fef" />
               </button>
             ) : (
               <button
@@ -642,7 +613,7 @@ const ConversationView = ({
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf2ff] text-[#3b5bdb]"
                 onClick={() => handleSendMess({ content: LIKE_EMOJI })}
               >
-                <ThumbsUp className='text-yellow-500' fill="#d2dd10" size={20} />
+                <ThumbsUp size={20} fill="#d2dd10" />
               </button>
             )}
           </div>
@@ -656,16 +627,19 @@ const ConversationView = ({
           size="sm"
         >
           {/* Thêm key vào đây để React reset lại hoàn toàn state của ProfileFriend mỗi lần đổi người */}
-            <MenuProfile
-              type = {isGroup ? 'group' : 'personal'}
-              data = {openProfile}
-              onSelectConversation={onSelectConversation}
-              selectedConversation={selectedConversation}
-            />
-          
+          <MenuProfile
+            type={isGroup ? 'group' : 'personal'}
+            data={openProfile}
+            onSelectConversation={onSelectConversation}
+            selectedConversation={selectedConversation}
+            onMobileBack={onMobileBack}
+          />
+
         </Modal>
-      )}   
-      
+      )}
+
+      <ImageViewer src={viewImage} onClose={() => setViewImage(null)} />
+
     </div>
   );
 };

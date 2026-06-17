@@ -1,6 +1,9 @@
 import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
 import User from "../models/User.js";
+import { onlineUsers } from "../config/socketStore.js";
+import { io } from "../server.js";
+
 
 export const sendMessage = async (req, res) => {
   try {
@@ -23,7 +26,7 @@ export const sendMessage = async (req, res) => {
       lastSenderId: sender,
       updatedAt: Date.now()
     });
-    
+
     res.json(message);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -35,8 +38,11 @@ export const getMessages = async (req, res) => {
     const { conversationId } = req.params;
     const limit = Number(req.query.limit) || 20;
     const before = req.query.before;
-
-    const query = { conversationId };
+    const user = await User.findOne({ userId: req.user._id });
+    const query = {
+      conversationId,
+      deletedBy: { $ne: user._id } // Lọc bỏ những tin nhắn đã bị người dùng này xóa
+    };
 
     if (before) {
       query._id = { $lt: before }; // Lấy những tin nhắn có ID nhỏ hơn cursor (cũ hơn)
@@ -62,11 +68,14 @@ export const getMessages = async (req, res) => {
     messages.reverse();
 
     const result = messages.map(m => ({
-        messageId: m._id,
-        senderId : m.sender._id,
-        name: m.sender.fullname,
-        content: m.content,
-        createdAt: m.createdAt
+      messageId: m._id,
+      senderId: m.sender._id,
+      name: m.sender.fullname,
+      content: m.content,
+      type: m.type || "text",
+      image: m.image || null,
+      createdAt: m.createdAt,
+      isDeleted: m.isDeleted || false
     }));
 
     res.json({
@@ -74,6 +83,98 @@ export const getMessages = async (req, res) => {
       hasMore,
       nextCursor
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const deleteMessageForMe = async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user._id });
+    const { messageId } = req.body;
+
+    if (!messageId) {
+      return res.status(400).json({ message: "Thiếu messageId" });
+    }
+
+    const message = await Message.findByIdAndUpdate(messageId, {
+      $addToSet: { deletedBy: user._id }
+    });
+
+    return res.json(message);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const revokeMessage = async (req, res) => {
+  try {
+    const { messageId, conversationId } = req.body;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
+    }
+
+    const updated = await Message.findByIdAndUpdate(
+      messageId,
+      {
+        content: "Tin nhắn đã được thu hồi",
+        isDeleted: true
+      },
+      { new: true }
+    );
+
+    const conversation = await Conversation.findById(conversationId).populate("members");
+
+    conversation.members.forEach((member) => {
+      const socketId = onlineUsers.get(String(member._id));
+      if (socketId) {
+        io.to(socketId).emit("message-revoked", {
+          messageId,
+          conversationId,
+          content: updated.content,
+          isDeleted: true
+        });
+      }
+    });
+
+    return res.json(updated);
+
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const sendImage = async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user._id });
+    const { conversationId } = req.body;
+    const sender = user._id;
+    if (!conversationId || !req.file) {
+      return res.status(400).json({ message: "Thiếu dữ liệu" });
+    }
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = `/uploads/${req.file.filename}`;
+    }
+    const message = await Message.create({
+      conversationId,
+      sender,
+      type: "image",
+      content: "[Hình ảnh]",
+      image: imageUrl
+    });
+
+    // update last message conversation
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: imageUrl,
+      lastSenderId: sender,
+      updatedAt: Date.now()
+    });
+
+    res.json(message);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
