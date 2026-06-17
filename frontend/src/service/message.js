@@ -6,6 +6,7 @@ const message = {
             params: {
                 limit: params?.limit || 20,
                 after: params?.after || null,
+                q: params?.q || null,
             }
         });
         return res;

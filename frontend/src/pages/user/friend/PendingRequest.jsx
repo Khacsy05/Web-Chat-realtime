@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, X, User, UserCheck, Mail, ChevronDown, ChevronUp } from 'lucide-react'; // Thêm các icon cần thiết
 import Modal from '@/components/Modal';
 import ProfileFriend from '../profile/ProfileFriend';
+import useFriendStore from '@/stores/useFriendStore';
 
 const PendingRequest = () => {
   const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};
@@ -12,10 +13,14 @@ const PendingRequest = () => {
     () => typeof window !== 'undefined' && window.innerWidth < 1024
   );
   
-  const [sentRequests, setSentRequests] = useState([]);
-  const [receivedRequests, setReceivedRequests] = useState([]);
-  const [loadingReceived, setLoadingReceived] = useState(true);
-  const [loadingSent, setLoadingSent] = useState(true);
+  const {
+    sentRequests,
+    receivedRequests,
+    fetchRequests,
+    cancelFriendRequest,
+    acceptFriendRequest,
+    declineFriendRequest
+  } = useFriendStore();
 
   const [openProfile, setOpenProfile] = useState(null);
 
@@ -41,48 +46,21 @@ const PendingRequest = () => {
 
   const showBackButton = isNarrowFromLayout ?? isNarrowScreen;
 
-  const fetchAllRequests = async () => {
-    user.receivedRequest()
-      .then(res => setReceivedRequests(res.data || []))
-      .catch(err => console.error('Lỗi tải lời mời nhận được:', err))
-      .finally(() => setLoadingReceived(false));
-
-    user.sentRequest()
-      .then(res => setSentRequests(res.data || []))
-      .catch(err => console.error('Lỗi tải lời mời đã gửi:', err))
-      .finally(() => setLoadingSent(false));
-  };
-
   useEffect(() => {
-    fetchAllRequests();
-  }, []);
+    fetchRequests();
+  }, [fetchRequests]);
 
   // --- CÁC HÀM XỬ LÝ CHỨC NĂNG ---
   const executeCancelRequest = async (idRequest) => {
-    try {
-      await user.cancelRequest(idRequest);
-      setSentRequests((prev) => prev.filter(item => item._id !== idRequest));
-    } catch (error) {
-      console.error("Lỗi khi thu hồi:", error);
-    }
+    await cancelFriendRequest(idRequest);
   };
 
   const executeAcceptRequest = async (idRequest) => {
-    try {
-      await user.acceptRequest(idRequest);
-      setReceivedRequests((prev) => prev.filter(item => item._id !== idRequest));
-    } catch (error) {
-      console.error("Lỗi khi chấp nhận kết bạn:", error);
-    }
+    await acceptFriendRequest(idRequest);
   };
 
   const executeDeclineRequest = async (idRequest) => {
-    try {
-      await user.rejectRequest(idRequest);
-      setReceivedRequests((prev) => prev.filter(item => item._id !== idRequest));
-    } catch (error) {
-      console.error("Lỗi khi từ chối lời mời:", error);
-    }
+    await declineFriendRequest(idRequest);
   };
 
   const openConfirmDialog = (type, idRequest, name) => {

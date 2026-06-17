@@ -133,7 +133,7 @@ const useMessStore = create((set, get) => ({
   },
 
 
-  sendImage: async ({ conversationId, image, file, currentUser, userName, members, onMessageEvent }) => {
+  sendImage: async ({ conversationId, image, file, currentUser, userName, members, onMessageEvent, text }) => {
     try {
       const fileToUpload = image || file;
       if (!conversationId || !currentUser?.idUser) {
@@ -157,6 +157,7 @@ const useMessStore = create((set, get) => ({
         messageId: res.data._id,
         senderId: currentUser.idUser,
         name: userName || 'Người dùng',
+        text: "[Hình ảnh]",
         type: 'image',
         image: res.data.image, // 👈 QUAN TRỌNG
         createdAt: res.data.createdAt || new Date().toISOString(),
@@ -168,14 +169,14 @@ const useMessStore = create((set, get) => ({
       onMessageEvent?.({
         conversationId: String(conversationId),
         senderId: currentUser.idUser,
-        content: res.data.content,
+        content: "[Hình ảnh]",
         createdAt: new Date().toISOString(),
       });
 
       socket.emit('send-message', {
         from: String(currentUser.idUser),
         members: members || [],
-        text: res.data.content || "[Hình ảnh]",
+        text: "[Hình ảnh]",
         type: 'image',
         image: res.data.image,
         conversationId: String(conversationId),
@@ -269,7 +270,7 @@ const useMessStore = create((set, get) => ({
           incomingMsg.type = 'image';
           incomingMsg.image = payload.image; // Gán link ảnh nhận từ socket
         } else {
-          incomingMsg.content = payload.text; // Tin nhắn chữ bình thường
+          incomingMsg.text = payload.text; // Tin nhắn chữ bình thường
         }
         return {
           mess: [...state.mess, incomingMsg],

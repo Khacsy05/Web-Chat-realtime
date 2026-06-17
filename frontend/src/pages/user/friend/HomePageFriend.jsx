@@ -76,17 +76,14 @@ const HomePageFriend = () => {
         <Outlet context={outletContext} />
       </main>
 
-      {/* < lg: chỉ 1 panel full width */}
+      {/* < lg: chỉ 1 panel full width sử dụng CSS để ẩn/hiện thay vì unmount để giữ cache */}
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden lg:hidden">
-        {!mobileShowOutlet ? (
-          <div className="flex h-full w-full min-w-0 flex-col bg-white">
-            <FriendSiderBar onOpenContent={openFriendContent} />
-          </div>
-        ) : (
-          <main className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden">
-            <Outlet context={outletContext} />
-          </main>
-        )}
+        <div className={`h-full w-full min-w-0 flex-col bg-white ${!mobileShowOutlet ? 'flex' : 'hidden'}`}>
+          <FriendSiderBar onOpenContent={openFriendContent} />
+        </div>
+        <main className={`h-full w-full min-w-0 flex-1 flex-col overflow-hidden ${mobileShowOutlet ? 'flex' : 'hidden'}`}>
+          <Outlet context={outletContext} />
+        </main>
       </div>
     </div>
   )
