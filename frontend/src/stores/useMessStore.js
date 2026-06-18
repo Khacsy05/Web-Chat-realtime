@@ -249,6 +249,7 @@ const useMessStore = create((set, get) => ({
         conversationId: String(payload.conversationId),
         senderId: payload.from,
         content: payload.text,
+        type: payload.type || 'text',
         createdAt: new Date().toISOString(),
       });
 
@@ -263,15 +264,12 @@ const useMessStore = create((set, get) => ({
           messageId: payload.messageId,
           senderId: payload.from,
           name: payload.name ?? 'Người dùng',
+          content: payload.text,
+          type: payload.type || 'text',
+          image: payload.image || null,
           createdAt: payload.createdAt || new Date().toISOString(),
         };
 
-        if (payload.type === 'image') {
-          incomingMsg.type = 'image';
-          incomingMsg.image = payload.image; // Gán link ảnh nhận từ socket
-        } else {
-          incomingMsg.text = payload.text; // Tin nhắn chữ bình thường
-        }
         return {
           mess: [...state.mess, incomingMsg],
         };

@@ -23,7 +23,8 @@ const useChatStore = create((set, get) => ({
 
       const updated = {
         ...state.conversations[idx],
-        lastMessage: payload.content,
+        lastMessage: payload.content || payload.text,
+        lastSenderId: payload.type === 'system' ? null : payload.from,
         updatedAt: new Date().toISOString(),
       };
 
