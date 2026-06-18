@@ -113,7 +113,7 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
       const updated = {
         ...next[i],
         lastMessage: lastMessageEvent.content,
-        lastSenderId: lastMessageEvent.senderId,
+        lastSenderId: lastMessageEvent.type === 'system' ? null : lastMessageEvent.senderId,
         updatedAt: new Date().toISOString(),
       };
       next.splice(i, 1);

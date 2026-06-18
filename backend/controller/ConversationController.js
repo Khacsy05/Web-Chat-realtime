@@ -269,21 +269,58 @@ export const removeMember = async (req, res) => {
     await conversation.save();
     await conversation.populate("members");
 
+    const actor = await User.findOne({ userId: req.user._id });
+    const target = await User.findById(memberId);
 
+    const isSelfLeave = actor._id.toString() === memberId.toString();
+    const systemText = isSelfLeave
+      ? `${target.fullname} đã rời nhóm.`
+      : `${actor.fullname} đã xóa ${target.fullname} khỏi nhóm.`;
+
+    const sysMessage = await Message.create({
+      conversationId,
+      sender: actor._id,
+      type: "system",
+      content: systemText
+    });
+
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: systemText,
+      lastSenderId: null,
+      updatedAt: Date.now()
+    });
 
     // 🔥 notify user bị kick / rời
     const kickedSocket = onlineUsers.get(String(memberId));
     if (kickedSocket) {
+      io.to(kickedSocket).emit("receive-message", {
+        from: actor._id,
+        text: sysMessage.content,
+        conversationId: String(conversationId),
+        messageId: String(sysMessage._id),
+        name: "Hệ thống",
+        type: "system",
+        createdAt: sysMessage.createdAt
+      });
       io.to(kickedSocket).emit("member-removed", {
         conversationId,
       });
     }
 
-    // 🔥 notify remaining members
+    // 🔥 notify remaining members and send system message
     conversation.members.forEach((member) => {
       const socketId = onlineUsers.get(String(member._id));
 
       if (socketId) {
+        io.to(socketId).emit("receive-message", {
+          from: actor._id,
+          text: sysMessage.content,
+          conversationId: String(conversationId),
+          messageId: String(sysMessage._id),
+          name: "Hệ thống",
+          type: "system",
+          createdAt: sysMessage.createdAt
+        });
         io.to(socketId).emit("member-updated", {
           conversationId,
           conversation,
@@ -301,12 +338,27 @@ export const addMember = async (req, res) => {
   try {
     const { conversationId, memberIds } = req.body;
 
+    const actor = await User.findOne({ userId: req.user._id });
+    const targets = await User.find({ _id: { $in: memberIds } });
+    const targetNames = targets.map(t => t.fullname).join(", ");
+    const systemText = `${actor.fullname} đã thêm ${targetNames} vào nhóm.`;
+
+    const sysMessage = await Message.create({
+      conversationId,
+      sender: actor._id,
+      type: "system",
+      content: systemText
+    });
+
     const conversation = await Conversation.findByIdAndUpdate(
       conversationId,
       {
         $addToSet: {
           members: { $each: memberIds }
-        }
+        },
+        lastMessage: systemText,
+        lastSenderId: null,
+        updatedAt: Date.now()
       },
       { returnDocument: 'after' }
     ).populate("members");
@@ -315,11 +367,20 @@ export const addMember = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy nhóm" });
     }
 
-    // 1. Notify group cũ
+    // 1. Notify all members and send system message
     conversation.members.forEach(member => {
       const socketId = onlineUsers.get(String(member._id));
 
       if (socketId) {
+        io.to(socketId).emit("receive-message", {
+          from: actor._id,
+          text: sysMessage.content,
+          conversationId: String(conversationId),
+          messageId: String(sysMessage._id),
+          name: "Hệ thống",
+          type: "system",
+          createdAt: sysMessage.createdAt
+        });
         io.to(socketId).emit("member-updated", {
           conversationId,
           conversation,

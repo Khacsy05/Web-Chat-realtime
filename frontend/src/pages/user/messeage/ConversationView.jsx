@@ -470,6 +470,23 @@ const ConversationView = ({
             }
           }
 
+          if (item.type === 'system') {
+            return (
+              <div key={item.messageId || index} className="my-3 flex flex-col items-center w-full">
+                {showDateDivider && item.createdAt && (
+                  <div className="my-2 flex items-center justify-center">
+                    <span className="rounded-full bg-gray-200/70 px-3 py-1 text-[11px] font-medium text-gray-500 shadow-sm">
+                      {formatChatDate(item.createdAt)}
+                    </span>
+                  </div>
+                )}
+                <div className="rounded-full bg-gray-100/90 px-4 py-1.5 text-[12px] text-gray-500 text-center max-w-[85%] shadow-sm border border-gray-200/50 font-medium">
+                  {item.content}
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={item.messageId || index}>
 

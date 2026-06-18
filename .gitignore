@@ -1,2 +1,14 @@
-.env
-node_modules/
+# Chặn thư mục node_modules ở cả backend và frontend
+backend/node_modules/
+frontend/node_modules/
+
+# Chặn file môi trường bí mật ở cả hai bên
+backend/.env
+frontend/.env
+
+# Chặn file build đầu ra của Frontend (nếu có)
+frontend/dist/
+
+# Chặn các file rác của hệ điều hành Windows / Mac
+.DS_Store
+Thumbs.db
