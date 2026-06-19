@@ -75,6 +75,17 @@ const conversation = {
             throw error.response || { message: "Loi cap nhat avatar" };
         }
     },
+    markAsSeen: async (conversationId, lastSeenMessageId) => {
+        try {
+            const response = await api.put("/conversation/markAsSeen", {
+                conversationId,
+                lastSeenMessageId
+            });
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Lỗi đánh dấu đã xem" };
+        }
+    },
 }
 
 export default conversation

@@ -24,7 +24,7 @@ import conversation from '@/service/conversation';
 import { div } from 'framer-motion/client';
 import AddMembersModal from './AddMembersModal';
 import useMessStore from '@/stores/useMessStore';
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMembers, onOpenMediaArchive, archiveItems }) => {
   const currentUser = useAuthStore((state) => state.user);
   const setConversations = useChatStore((state) => state.setConversations);
@@ -57,8 +57,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
     : (otherMember?.fullname || 'Người dùng');
 
   const avatarDisplay = isGroup
-    ? (`http://localhost:5000${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
-    : (`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`);
+    ? (`${API_BASE_URL}${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
+    : (`${API_BASE_URL}${otherMember?.avatar || "/uploads/default-avatar.png"}`);
   // Lọc lấy toàn bộ tin nhắn có type là 'image' và không bị thu hồi (isDeleted)
   const realMediaItems = archiveItems.filter(item => item.type === 'image' && !item.isDeleted).slice(0, 8);
   // Giả lập data danh sách ảnh/video gửi trong đoạn chat để render grid
@@ -136,7 +136,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
           {isGroup ? (
             selectedConversation?.avatar ? (
               <img
-                src={`http://localhost:5000${selectedConversation.avatar}`}
+                src={`${API_BASE_URL}${selectedConversation.avatar}`}
                 alt={displayName}
                 className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
               />
@@ -145,19 +145,19 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
                 <div className="relative size-full">
                   {/* Ảnh thành viên 1 */}
                   <img
-                    src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                    src={`${API_BASE_URL}${members[0]?.avatar || '/uploads/default-avatar.png'}`}
                     className="absolute top-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-20"
                     alt="mem1"
                   />
                   {/* Ảnh thành viên 2 */}
                   <img
-                    src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                    src={`${API_BASE_URL}${members[1]?.avatar || '/uploads/default-avatar.png'}`}
                     className="absolute top-0 right-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-10"
                     alt="mem2"
                   />
                   {/* Ảnh thành viên 3 */}
                   <img
-                    src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                    src={`${API_BASE_URL}${members[2]?.avatar || '/uploads/default-avatar.png'}`}
                     className="absolute bottom-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-30"
                     alt="mem3"
                   />
@@ -328,7 +328,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
             <div className="grid grid-cols-4 gap-1.5">
               {realMediaItems?.map((item) => (
                 <div key={item._id} className="aspect-square w-full overflow-hidden rounded-sm bg-gray-100 border border-gray-200/50 cursor-pointer hover:opacity-90">
-                  <img src={`http://localhost:5000${item?.image}`} alt="media" className="h-full w-full object-cover" />
+                  <img src={`${API_BASE_URL}${item?.image}`} alt="media" className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>

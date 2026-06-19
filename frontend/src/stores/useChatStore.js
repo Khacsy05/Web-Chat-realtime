@@ -108,6 +108,32 @@ const useChatStore = create((set, get) => ({
       ),
     }));
   },
+  updateConversationSeen: (conversationId, userId, lastSeenMessageId) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) => {
+        if (String(c._id) !== String(conversationId)) return c;
+        const membersReadStatus = c.membersReadStatus ? [...c.membersReadStatus] : [];
+        const index = membersReadStatus.findIndex((s) => String(s.userId) === String(userId));
+        if (index > -1) {
+          membersReadStatus[index] = {
+            ...membersReadStatus[index],
+            lastSeenMessageId,
+            seenAt: new Date().toISOString()
+          };
+        } else {
+          membersReadStatus.push({
+            userId,
+            lastSeenMessageId,
+            seenAt: new Date().toISOString()
+          });
+        }
+        return { ...c, membersReadStatus };
+      })
+    }));
+  },
+  onUserSeenUpdate: ({ conversationId, userId, lastSeenMessageId }) => {
+    get().updateConversationSeen(conversationId, userId, lastSeenMessageId);
+  },
 
   /* ================= INIT SOCKET ================= */
   initSocket: () => {
@@ -120,6 +146,7 @@ const useChatStore = create((set, get) => ({
     socket.off("conversation-cleared", store.onConversationCleared);
     socket.off("group-avatar-updated", store.onUpdateAvatarConversation);
     socket.off("group-name-updated", store.onUpdateNameGroup);
+    socket.off("user-seen-update", store.onUserSeenUpdate);
 
     socket.on("receive-message", store.onReceiveMessage);
     socket.on("conversation-createGroup", store.onCreateGroup);
@@ -129,6 +156,7 @@ const useChatStore = create((set, get) => ({
     socket.on("conversation-cleared", store.onConversationCleared);
     socket.on("group-avatar-updated", store.onUpdateAvatarConversation);
     socket.on("group-name-updated", store.onUpdateNameGroup);
+    socket.on("user-seen-update", store.onUserSeenUpdate);
   },
 }));
 

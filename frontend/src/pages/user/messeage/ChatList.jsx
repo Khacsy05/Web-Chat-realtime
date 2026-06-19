@@ -125,7 +125,15 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
   // Lọc nhanh dữ liệu tại Client để tăng tốc độ hiển thị giao diện
   const filteredConversations = conversations.filter((item) => {
     // 1. Lọc theo Tab Chưa đọc / Tất cả
-    if (tab === 'unread' && item.isSeen) return false;
+    if (tab === 'unread') {
+      const myStatus = item.membersReadStatus?.find(
+        (status) => String(status.userId) === String(currentUser?.idUser)
+      );
+      const isUnread = item.lastMessage &&
+        String(item.lastSenderId) !== String(currentUser?.idUser) &&
+        (!myStatus || new Date(myStatus.seenAt) < new Date(item.updatedAt));
+      if (!isUnread) return false;
+    }
 
     // 2. Lọc nhanh theo từ khóa tìm kiếm (bảo hiểm thêm trường hợp dữ liệu đã có sẵn tại client)
     if (searchValue.trim() === '') return true;

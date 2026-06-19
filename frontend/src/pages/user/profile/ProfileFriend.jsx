@@ -1,12 +1,12 @@
 import ImageViewer from '@/components/ImageViewer';
 import React, { useState } from 'react';
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const ProfileFriend = ({ initialData }) => {
     // Vì backend đã populate hết, initialData đã có sẵn đầy đủ mọi thông tin
     const profile = initialData;
     const [viewer, setViewer] = useState(null);
     const displayName = profile?.fullname || "Người dùng";
-    const avatarSrc = `http://localhost:5000${profile?.avatar || "/uploads/default-avatar.png"}`;
+    const avatarSrc = `${API_BASE_URL}${profile?.avatar || "/uploads/default-avatar.png"}`;
 
     return (
         <div className="flex flex-col items-center gap-4">

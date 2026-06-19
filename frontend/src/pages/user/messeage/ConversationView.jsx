@@ -16,6 +16,7 @@ import ImageViewer from '@/components/ImageViewer';
 const messSchema = yup.object().shape({
   content: yup.string().required("vui long nhap noi dung"),
 });
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const EMPTY_FORM = {
   content: "",
@@ -170,8 +171,8 @@ const ConversationView = ({
     : (otherMember?.fullname || 'Người dùng');
 
   const avatarDisplay = isGroup
-    ? (`http://localhost:5000${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
-    : (`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`);
+    ? (`${API_BASE_URL}${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
+    : (`${API_BASE_URL}${otherMember?.avatar || "/uploads/default-avatar.png"}`);
   const userName = thisMember?.fullname || 'Nguoi dung';
   const conversationId = selectedConversation?._id;
 
@@ -334,7 +335,7 @@ const ConversationView = ({
                 {isGroup ? (
                   selectedConversation?.avatar ? (
                     <img
-                      src={`http://localhost:5000${selectedConversation.avatar}`}
+                      src={`${API_BASE_URL}${selectedConversation.avatar}`}
                       alt={displayName}
                       className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
                     />
@@ -343,19 +344,19 @@ const ConversationView = ({
                       <div className="relative size-full">
                         {/* Ảnh thành viên 1 */}
                         <img
-                          src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                          src={`${API_BASE_URL}${members[0]?.avatar || '/uploads/default-avatar.png'}`}
                           className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20"
                           alt="mem1"
                         />
                         {/* Ảnh thành viên 2 */}
                         <img
-                          src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                          src={`${API_BASE_URL}${members[1]?.avatar || '/uploads/default-avatar.png'}`}
                           className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10"
                           alt="mem2"
                         />
                         {/* Ảnh thành viên 3 */}
                         <img
-                          src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                          src={`${API_BASE_URL}${members[2]?.avatar || '/uploads/default-avatar.png'}`}
                           className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30"
                           alt="mem3"
                         />
@@ -437,6 +438,13 @@ const ConversationView = ({
 
         {!isLoadingMessages && mess.map((item, index) => {
           const isMe = String(item.senderId) === String(currentUser?.idUser);
+          const readers = selectedConversation?.members?.filter((member) => {
+            if (String(member._id) === String(currentUser?.idUser)) return false;
+            const readStatus = selectedConversation?.membersReadStatus?.find(
+              (status) => String(status.userId) === String(member._id)
+            );
+            return readStatus && String(readStatus.lastSeenMessageId) === String(item.messageId);
+          }) || [];
           let showDateDivider = false;
           let showTimeUnderMessage = false;
           if (index === 0) {
@@ -521,10 +529,10 @@ const ConversationView = ({
                     ) : item.type === 'image' ? (
                       // 2. Trường hợp là ẢNH: Không có bg, không có padding, chỉ có border-radius riêng của ảnh
                       <img
-                        src={`http://localhost:5000${item.image}`}
+                        src={`${API_BASE_URL}${item.image}`}
                         alt="image"
                         className="w-[200px] h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-90 transition shadow-sm block"
-                        onClick={() => setViewImage(`http://localhost:5000${item.image}`)}
+                        onClick={() => setViewImage(`${API_BASE_URL}${item.image}`)}
                       />
                     ) : (
                       // 3. Trường hợp tin nhắn VĂN BẢN: Có màu nền tương ứng theo người gửi
@@ -577,6 +585,20 @@ const ConversationView = ({
                 {showTimeUnderMessage && item.createdAt && (
                   <div className="mt-0.5 px-1 text-[10px] text-gray-400 font-normal animate-fade-in">
                     {formatMessageTime(item.createdAt)}
+                  </div>
+                )}
+
+                {readers.length > 0 && (
+                  <div className={`mt-1 flex items-center gap-0.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    {readers.map((reader) => (
+                      <img
+                        key={reader._id}
+                        src={reader.avatar ? `${API_BASE_URL}${reader.avatar}` : `${API_BASE_URL}/uploads/default-avatar.png`}
+                        alt={reader.fullname}
+                        title={`${reader.fullname} đã xem`}
+                        className="h-3.5 w-3.5 rounded-full object-cover border border-white shadow-sm"
+                      />
+                    ))}
                   </div>
                 )}
               </div>

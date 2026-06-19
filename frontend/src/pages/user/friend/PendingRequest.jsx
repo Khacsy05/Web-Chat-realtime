@@ -12,7 +12,7 @@ const PendingRequest = () => {
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 1024
   );
-  
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const {
     sentRequests,
     receivedRequests,
@@ -33,7 +33,7 @@ const PendingRequest = () => {
     isOpen: false,
     title: "",
     description: "",
-    onConfirm: () => {}, 
+    onConfirm: () => { },
   });
 
   useEffect(() => {
@@ -64,7 +64,7 @@ const PendingRequest = () => {
   };
 
   const openConfirmDialog = (type, idRequest, name) => {
-    let config = { isOpen: true, title: "", description: "", onConfirm: () => {} };
+    let config = { isOpen: true, title: "", description: "", onConfirm: () => { } };
 
     if (type === 'cancel') {
       config.title = "Thu hồi lời mời";
@@ -93,7 +93,7 @@ const PendingRequest = () => {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-[#f0f2f5] relative">
-      
+
       {/* HEADER */}
       <div className="shrink-0 border-b bg-white px-4 py-4">
         <div className="flex items-center gap-2 text-[16px] font-semibold text-[#1f2328]">
@@ -113,13 +113,13 @@ const PendingRequest = () => {
 
       {/* BODY CONTAINER */}
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-6">
-        
+
         {/* KHU VỰC 1: LỜI MỜI NHẬN ĐƯỢC */}
         <div className="space-y-3">
           <h2 className="text-[15px] font-semibold text-gray-800">
             Lời mời nhận được ({receivedRequests.length})
           </h2>
-          
+
           {receivedRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center bg-transparent py-6 text-center">
               <p className="text-[14px] font-medium text-gray-500">Bạn không có lời mời nào</p>
@@ -134,7 +134,7 @@ const PendingRequest = () => {
                       <div className="flex items-start gap-3">
                         <button onClick={() => setOpenProfile(sender)}>
                           <img
-                            src={`http://localhost:5000${sender.avatar || '/uploads/default-avatar.png'}`}
+                            src={`${API_BASE_URL}${sender.avatar || '/uploads/default-avatar.png'}`}
                             onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
                             alt={sender.fullname}
                             className="size-14 rounded-full object-cover border border-gray-100"
@@ -145,19 +145,19 @@ const PendingRequest = () => {
                             {sender.fullname || 'Người dùng'}
                           </h3>
                           <p className="text-[13px] text-gray-400 mt-0.5">Muốn kết bạn với bạn</p>
-                        </div>                   
+                        </div>
                       </div>
 
                       <div className="mt-4">
                         <div className='flex w-full gap-2'>
-                          <Button 
+                          <Button
                             variant="secondary"
                             className="flex-1 h-9 rounded-lg bg-[#0561ff] text-white hover:bg-[#0052db] font-medium text-[14px]"
                             onClick={() => openConfirmDialog('accept', item._id, sender.fullname)}
                           >
                             Xác nhận
                           </Button>
-                          <Button 
+                          <Button
                             variant="secondary"
                             className="flex-1 h-9 rounded-lg bg-[#e4e6eb] text-[#050505] hover:bg-[#d8dadf] font-medium text-[14px]"
                             onClick={() => openConfirmDialog('decline', item._id, sender.fullname)}
@@ -210,7 +210,7 @@ const PendingRequest = () => {
                       <div className="flex items-start gap-3">
                         <button onClick={() => setOpenProfile(receiver)}>
                           <img
-                            src={`http://localhost:5000${receiver.avatar || '/uploads/default-avatar.png'}`}
+                            src={`${API_BASE_URL}${receiver.avatar || '/uploads/default-avatar.png'}`}
                             onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
                             alt={receiver.fullname}
                             className="size-14 rounded-full object-cover border border-gray-100"
@@ -221,11 +221,11 @@ const PendingRequest = () => {
                             {receiver.fullname || 'Người dùng'}
                           </h3>
                           <p className="text-[13px] text-gray-400 mt-0.5">Bạn đã gửi lời mời</p>
-                        </div>                       
+                        </div>
                       </div>
 
                       <div className="mt-4">
-                        <Button 
+                        <Button
                           variant="secondary"
                           className="w-full h-9 rounded-lg bg-[#e4e6eb] text-[#050505] hover:bg-[#d8dadf] font-medium text-[14px]"
                           onClick={() => openConfirmDialog('cancel', item._id, receiver.fullname)}
@@ -303,10 +303,10 @@ const PendingRequest = () => {
       {/* MODAL PROFILE */}
       {openProfile && (
         <Modal title="Thông tin tài khoản" onClose={() => setOpenProfile(null)} size="md">
-          <ProfileFriend initialData={openProfile}/>
-        </Modal>       
+          <ProfileFriend initialData={openProfile} />
+        </Modal>
       )}
-      
+
     </div>
   );
 };

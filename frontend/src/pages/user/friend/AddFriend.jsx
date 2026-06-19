@@ -20,18 +20,18 @@ const AddFriend = () => {
     sendFriendRequest,
     cancelFriendRequest
   } = useFriendStore();
-
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const [searchValue, setSearchValue] = useState('');
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 1024
   );
   const [openProfile, setOpenProfile] = useState(null);
-  
+
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: "",
     description: "",
-    onConfirm: () => {}, 
+    onConfirm: () => { },
   });
 
   useEffect(() => {
@@ -60,7 +60,7 @@ const AddFriend = () => {
       isOpen: true,
       title: "",
       description: "",
-      onConfirm: () => {}
+      onConfirm: () => { }
     };
 
     if (type === 'cancel') {
@@ -68,8 +68,8 @@ const AddFriend = () => {
       config.description = `Bạn có chắc chắn muốn thu hồi lời mời kết bạn đã gửi tới ${name}?`;
       // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
       config.onConfirm = () => handleCancelRequest(idRequest, idFriend);
-    } 
-    else if(type === 'sent'){
+    }
+    else if (type === 'sent') {
       config.title = "Gửi lời mời";
       config.description = `Bạn có chắc chắn muốn gửi lời mời kết bạn đã gửi tới ${name}?`;
       // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
@@ -119,7 +119,7 @@ const AddFriend = () => {
       </div>
 
       {/* BODY CHÍNH */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">    
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
         <div className="flex min-h-full flex-col gap-2 rounded-sm bg-white p-2">
           {/* THANH SEARCH & FILTER */}
           <div className="grid grid-cols-12 gap-2">
@@ -161,7 +161,6 @@ const AddFriend = () => {
             const requestInfo = sentRequests.find(req => String(req.to?._id) === String(item._id));
             const isSent = !!requestInfo;
             const userName = item?.fullname || 'Người dùng';
-
             return (
               <div
                 key={item._id}
@@ -169,12 +168,12 @@ const AddFriend = () => {
               >
                 <button onClick={() => setOpenProfile(item)}>
                   <img
-                    src={`http://localhost:5000${item?.avatar || '/uploads/default-avatar.png'}`}
+                    src={`${API_BASE_URL}${item?.avatar || '/uploads/default-avatar.png'}`}
                     alt={userName}
                     className="size-11 rounded-full object-cover"
                   />
                 </button>
-                
+
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-[#1f2328]">
                     {userName}
@@ -184,16 +183,16 @@ const AddFriend = () => {
                 <div>
                   {isSent ? (
                     /* 🌟 SỬA ONCLICK: Bấm thu hồi sẽ gọi qua hàm trung gian để kích hoạt Modal xác nhận */
-                    <Button 
-                      className="bg-[#e9ecef] text-black hover:bg-[#dee2e6]" 
+                    <Button
+                      className="bg-[#e9ecef] text-black hover:bg-[#dee2e6]"
                       onClick={() => openConfirmDialog('cancel', requestInfo._id, userName, item._id)}
                     >
                       Thu hồi
                     </Button>
                   ) : (
                     /* Thêm bạn thì cho gửi thẳng luôn không cần qua modal xác nhận phiền phức */
-                    <Button 
-                      className="bg-[#0561ff] text-white hover:bg-[#0052db]" 
+                    <Button
+                      className="bg-[#0561ff] text-white hover:bg-[#0052db]"
                       onClick={() => openConfirmDialog('sent', null, userName, item._id)}
                     >
                       Thêm bạn
@@ -201,7 +200,7 @@ const AddFriend = () => {
                   )}
                 </div>
               </div>
-            );            
+            );
           })}
 
           {filteredFriend.length === 0 && (
@@ -216,11 +215,11 @@ const AddFriend = () => {
       {confirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
           {/* Lớp nền mờ đen phía sau */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
             onClick={closeConfirmDialog}
           />
-          
+
           {/* Khung nội dung Popup */}
           <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all border border-gray-100 scale-in-center">
             {/* Nút X đóng nhanh */}
@@ -275,7 +274,7 @@ const AddFriend = () => {
           onClose={() => setOpenProfile(null)}
           size="md"
         >
-          <ProfileFriend initialData={openProfile}/>
+          <ProfileFriend initialData={openProfile} />
         </Modal>
       )}
     </div>

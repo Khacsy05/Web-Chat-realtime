@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const AddMembersModal = ({ conversations, onClose }) => {
   const { friends, loading, fetchFriends } = useFriendStore();
-
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -58,7 +58,7 @@ const AddMembersModal = ({ conversations, onClose }) => {
     try {
       if (!selectedIds.length) return;
 
-      const response =  await conversation.addMember(conversations._id, selectedIds);
+      const response = await conversation.addMember(conversations._id, selectedIds);
 
       onClose();
     } catch (err) {
@@ -68,7 +68,7 @@ const AddMembersModal = ({ conversations, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      
+
       {/* overlay */}
       <div
         className="absolute inset-0 bg-black/40"
@@ -120,7 +120,7 @@ const AddMembersModal = ({ conversations, onClose }) => {
                       <img
                         src={
                           friend.avatar
-                            ? `http://localhost:5000${friend.avatar}`
+                            ? `${API_BASE_URL}${friend.avatar}`
                             : "https://via.placeholder.com/40"
                         }
                         className="w-9 h-9 rounded-full"

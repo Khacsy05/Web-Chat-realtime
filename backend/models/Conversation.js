@@ -39,6 +39,23 @@ const conversationSchema = mongoose.Schema({
         type: String,
         default: null
     },
+    membersReadStatus: [
+        {
+            userId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User"
+            },
+            lastSeenMessageId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Message",
+                default: null
+            },
+            seenAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ],
     clearedBy: [
         {
             type: mongoose.Schema.Types.ObjectId,

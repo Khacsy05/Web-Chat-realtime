@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, ChevronDown, Image, FileText, Link2 } from 'lucide-react';
 import ImageViewer from '@/components/ImageViewer';
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems }) => {
   const [activeTab, setActiveTab] = useState('media'); // 'media' | 'files' | 'links'
@@ -106,11 +106,11 @@ const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems })
                         {groupedMedia[dateLabel].map((item) => (
                           <div
                             key={item._id || item.messageId}
-                            onClick={() => setViewingImg(`http://localhost:5000${item.image}`)}
+                            onClick={() => setViewingImg(`${API_BASE_URL}${item.image}`)}
                             className="aspect-square w-full overflow-hidden bg-gray-100 rounded-sm cursor-pointer hover:brightness-90 transition-all border border-gray-150"
                           >
                             <img
-                              src={`http://localhost:5000${item.image}`}
+                              src={`${API_BASE_URL}${item.image}`}
                               alt="archive-media"
                               className="h-full w-full object-cover"
                               loading="lazy"

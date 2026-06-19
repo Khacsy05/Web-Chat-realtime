@@ -13,7 +13,7 @@ import User from './models/User.js';
 dotenv.config();
 const app = express();
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: process.env.FRONTEND_URL,
   credentials: true
 }));
 
@@ -27,7 +27,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
     methods: ["GET", "POST"],
   }
@@ -137,8 +137,8 @@ io.on("connection", (socket) => {
     await connectDB();             // kết nối DB
     console.log("MongoDB connected");
 
-    server.listen(5000, () => {
-      console.log("🚀 Server + Socket chạy cổng 5000");
+    server.listen(process.env.PORT || 5000, () => {
+      console.log(`🚀 Server + Socket chạy cổng ${process.env.PORT || 5000}`);
     });
   } catch (error) {
     console.error(error);

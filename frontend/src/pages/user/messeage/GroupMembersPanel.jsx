@@ -5,6 +5,7 @@ import { MoreHorizontal, X } from "lucide-react";
 import conversation from "@/service/conversation";
 import ProfileFriend from "../profile/ProfileFriend";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const GroupMembersPanel = ({ conversations, onBack }) => {
     const members = conversations.members || [];
 
@@ -123,8 +124,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                     >
                         <img
                             onClick={() => setOpenProfile(m)}
-                            src={`http://localhost:5000${m.avatar || "/uploads/default-avatar.png"
-                                }`}
+                            src={`${API_BASE_URL}${m.avatar || "/uploads/default-avatar.png"}`}
                             className="w-11 h-11 rounded-full"
                         />
 
@@ -240,7 +240,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                                             <img
                                                 src={
                                                     m.avatar
-                                                        ? `http://localhost:5000${m.avatar}`
+                                                        ? `${API_BASE_URL}${m.avatar}`
                                                         : "/uploads/default-avatar.png"
                                                 }
                                                 className="w-10 h-10 rounded-full object-cover border"

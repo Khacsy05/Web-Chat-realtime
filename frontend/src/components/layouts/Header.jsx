@@ -1,9 +1,9 @@
-﻿import {  useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthStore from "@/stores/useAuthStore";
 import Profile from "@/pages/user/profile/profile";
 import Modal from "../Modal";
-export function Header({ onNavigate   }) {
+export function Header({ onNavigate }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
@@ -11,9 +11,10 @@ export function Header({ onNavigate   }) {
   const [avatarError, setAvatarError] = useState(false);
   const name = user?.displayName || user?.fullname || user?.username || "Nguoi dung";
   const avatarLetter = name.charAt(0).toUpperCase();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const avatarSrc = user?.avatar
-    ? (user.avatar.startsWith("http") ? user.avatar : `http://localhost:5000${user.avatar}`)
-    : "http://localhost:5000/uploads/default-avatar.png";
+    ? (user.avatar.startsWith("http") ? user.avatar : `${API_BASE_URL}${user.avatar}`)
+    : `${API_BASE_URL}/uploads/default-avatar.png`;
   useEffect(() => {
     const handleGlobalClick = () => {
       // Khi bấm vào bất cứ đâu trên màn hình, ta đóng dropdown
@@ -21,10 +22,10 @@ export function Header({ onNavigate   }) {
         setDropOpen(false);
       }
     };
-  
+
     // Đăng ký sự kiện click toàn cục
     window.addEventListener('click', handleGlobalClick);
-  
+
     return () => {
       // Xóa sự kiện khi thoát trang
       window.removeEventListener('click', handleGlobalClick);
@@ -48,16 +49,17 @@ export function Header({ onNavigate   }) {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-            
-              
-              
+
+
+
             </button>
 
             <div className="relative">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  setDropOpen(!dropOpen)}}
+                  setDropOpen(!dropOpen)
+                }}
                 className="flex items-center gap-2 hover:bg-white/10 px-3 py-2 rounded-lg transition"
               >
                 {avatarError ? (
@@ -72,7 +74,7 @@ export function Header({ onNavigate   }) {
                     onError={() => setAvatarError(true)}
                   />
                 )}
-                
+
               </button>
 
               {dropOpen && (
@@ -85,7 +87,7 @@ export function Header({ onNavigate   }) {
                   </button>
                   <div className="border-t border-gray-100" />
                   <button className="w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-500"
-                  onClick={() => navigate("/login")}>Dang xuat</button>
+                    onClick={() => navigate("/login")}>Dang xuat</button>
                 </div>
               )}
             </div>
@@ -103,10 +105,10 @@ export function Header({ onNavigate   }) {
           <Profile />
         </Modal>
       )}
-    
+
     </div>
 
-    
+
 
   );
 }

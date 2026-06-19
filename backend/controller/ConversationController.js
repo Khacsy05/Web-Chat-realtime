@@ -457,3 +457,62 @@ export const updateNameGroup = async (req, res) => {
     res.status(500).json(err.message);
   }
 };
+
+export const markAsSeen = async (req, res) => {
+  try {
+    const { conversationId, lastSeenMessageId } = req.body;
+    const user = await User.findOne({ userId: req.user._id });
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    // Initialize membersReadStatus if it doesn't exist
+    if (!conversation.membersReadStatus) {
+      conversation.membersReadStatus = [];
+    }
+
+    const index = conversation.membersReadStatus.findIndex(
+      (status) => status.userId.toString() === user._id.toString()
+    );
+
+    if (index > -1) {
+      conversation.membersReadStatus[index].lastSeenMessageId = lastSeenMessageId;
+      conversation.membersReadStatus[index].seenAt = Date.now();
+    } else {
+      conversation.membersReadStatus.push({
+        userId: user._id,
+        lastSeenMessageId,
+        seenAt: Date.now()
+      });
+    }
+
+    await conversation.save();
+
+    // Populate members to respond with complete info
+    const updatedConversation = await Conversation.findById(conversationId).populate("members");
+
+    // Notify other online members via Socket
+    updatedConversation.members.forEach((member) => {
+      if (member._id.toString() !== user._id.toString()) {
+        const socketId = onlineUsers.get(String(member._id));
+        if (socketId) {
+          io.to(socketId).emit("user-seen-update", {
+            conversationId,
+            userId: user._id,
+            lastSeenMessageId,
+            seenAt: Date.now()
+          });
+        }
+      }
+    });
+
+    return res.status(200).json(updatedConversation);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};

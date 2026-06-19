@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import messageService from '@/service/message';
+import conversationService from '@/service/conversation';
+import useChatStore from '@/stores/useChatStore';
+import useAuthStore from '@/stores/useAuthStore';
 import socket from '@/lib/socket';
 import { toast } from 'sonner';
 
@@ -66,6 +69,13 @@ const useMessStore = create((set, get) => ({
           loadedConversationId: String(conversationId),
         };
       });
+
+      if (newMessages && newMessages.length > 0 && isReset) {
+        const latestMessage = newMessages[newMessages.length - 1];
+        if (latestMessage) {
+          get().markAsSeen(conversationId, latestMessage.messageId);
+        }
+      }
     } catch (error) {
       console.error('Error fetching messages in store:', error);
     } finally {
@@ -243,6 +253,19 @@ const useMessStore = create((set, get) => ({
     }, 1000);
   },
 
+  markAsSeen: async (conversationId, lastSeenMessageId) => {
+    if (!conversationId || !lastSeenMessageId) return;
+    try {
+      await conversationService.markAsSeen(conversationId, lastSeenMessageId);
+      const currentUserId = useAuthStore.getState().user?.idUser;
+      if (currentUserId) {
+        useChatStore.getState().updateConversationSeen(conversationId, currentUserId, lastSeenMessageId);
+      }
+    } catch (error) {
+      console.error("Error marking conversation as seen:", error);
+    }
+  },
+
   setupSocketListeners: (conversationId, onMessageEvent) => {
     const handleReceive = (payload) => {
       onMessageEvent?.({
@@ -274,6 +297,8 @@ const useMessStore = create((set, get) => ({
           mess: [...state.mess, incomingMsg],
         };
       });
+
+      get().markAsSeen(conversationId, payload.messageId);
     };
 
     const handleRevoke = (payload) => {

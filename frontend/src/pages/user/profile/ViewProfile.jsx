@@ -2,10 +2,10 @@ import ImageViewer from "@/components/ImageViewer";
 import { Button } from "@/components/ui/button";
 import { Camera } from "lucide-react";
 import { useState } from "react";
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const ViewProfile = ({ onEdit, profile, onAvatarChange }) => {
   const displayName = profile?.fullname || "Nguoi dung";
-  const avatarSrc = `http://localhost:5000${profile?.avatar || "/uploads/default-avatar.png"}`;
+  const avatarSrc = `${API_BASE_URL}${profile?.avatar || "/uploads/default-avatar.png"}`;
   const [viewer, setViewer] = useState(null);
   return (
     <>

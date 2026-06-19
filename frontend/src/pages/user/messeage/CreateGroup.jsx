@@ -2,10 +2,10 @@ import useFriendStore from '@/stores/useFriendStore';
 import React, { useEffect, useState, useMemo } from 'react';
 import { Camera, Search, X, ChevronRight } from 'lucide-react'; // Cài lucide-react nếu chưa có, hoặc thay bằng icon SVG
 import conversation from '@/service/conversation';
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const CreateGroup = ({ onClose }) => {
   const { friends, loading, fetchFriends } = useFriendStore();
-  
+
   // State quản lý việc nhập liệu và chọn thành viên
   const [groupName, setGroupName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,19 +50,19 @@ const CreateGroup = ({ onClose }) => {
         return acc;
       }, {});
 
-    return {  alphabetized: sortedAlphabet };
+    return { alphabetized: sortedAlphabet };
   }, [friends, searchQuery]);
 
   // Hàm handle submit sau này bạn tự viết API
-  
 
-  const handleCreateGroup = async (file,nameGroup,members) => {
+
+  const handleCreateGroup = async (file, nameGroup, members) => {
     try {
       const formData = new FormData();
       formData.append("avatar", file);
       formData.append("nameGroup", nameGroup);
       formData.append("members", JSON.stringify(members));
-  
+
       const res = await conversation.createGroup(formData);
       toast.success("Tạo nhóm thành công");
     } catch (error) {
@@ -80,28 +80,28 @@ const CreateGroup = ({ onClose }) => {
     <div className="h-[80vh] max-h-[600px] flex flex-col overflow-hidden">
       {/* Body */}
       <div className="flex flex-col flex-1 min-h-0">
-        
+
         {/* Nhập tên nhóm & Icon Camera */}
         <div className="flex items-center gap-3 mb-4">
           <label className="w-11 h-11 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition border border-gray-200 overflow-hidden cursor-pointer">
             {groupAvatar ? (
-            <img
-              src={avatar}
-              alt="avatar"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <Camera size={20} />
-          )}
+              <img
+                src={avatar}
+                alt="avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Camera size={20} />
+            )}
 
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageChange}
-          />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageChange}
+            />
           </label>
-          
+
           <input
             type="text"
             placeholder="Nhập tên nhóm..."
@@ -123,7 +123,7 @@ const CreateGroup = ({ onClose }) => {
           />
         </div>
 
-      
+
 
         {/* Danh sách bạn bè để chọn */}
         <div className="flex-1 overflow-y-auto pr-1 ">
@@ -143,21 +143,21 @@ const CreateGroup = ({ onClose }) => {
                   <div className="text-xs font-bold text-blue-800 mb-1 px-1">{letter}</div>
                   <div className="space-y-1">
                     {filteredFriends.alphabetized[letter].map((friend) => (
-                      <div 
-                        key={friend._id} 
+                      <div
+                        key={friend._id}
                         onClick={() => handleToggleSelect(friend._id)}
                         className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition"
                       >
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           checked={selectedIds.includes(friend._id)}
-                          onChange={() => {}} 
-                          className="w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                          onChange={() => { }}
+                          className="w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
-                        <img 
-                          src={friend.avatar ? `http://localhost:5000${friend.avatar}` : 'https://via.placeholder.com/150'} 
-                          className="w-10 h-10 rounded-full object-cover border border-gray-100" 
-                          alt="" 
+                        <img
+                          src={friend.avatar ? `${API_BASE_URL}${friend.avatar}` : 'https://via.placeholder.com/150'}
+                          className="w-10 h-10 rounded-full object-cover border border-gray-100"
+                          alt=""
                         />
                         <span className="text-[14px] font-normal text-gray-800 flex-1">{friend.fullname}</span>
                       </div>
@@ -171,20 +171,19 @@ const CreateGroup = ({ onClose }) => {
       </div>
       {/* Footer chứa nút bấm */}
       <div className="px-4 py-3 border-t border-gray-100 flex justify-end gap-3">
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="px-5 py-2 text-sm font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
         >
           Hủy
         </button>
-        <button 
-          onClick={() =>{ handleCreateGroup(groupAvatar,groupName,selectedIds); onClose()}}
+        <button
+          onClick={() => { handleCreateGroup(groupAvatar, groupName, selectedIds); onClose() }}
           disabled={selectedIds.length < 2}
-          className={`px-5 py-2 text-sm font-semibold rounded transition ${
-            selectedIds.length > 1 
-              ? 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer' 
-              : 'bg-blue-200 text-white cursor-not-allowed'
-          }`}
+          className={`px-5 py-2 text-sm font-semibold rounded transition ${selectedIds.length > 1
+            ? 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
+            : 'bg-blue-200 text-white cursor-not-allowed'
+            }`}
         >
           Tạo nhóm
         </button>

@@ -1,7 +1,7 @@
 import React from 'react';
 import useAuthStore from '@/stores/useAuthStore';
 import { UsersRound } from 'lucide-react';
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConversation }) => {
   const currentUser = useAuthStore((state) => state.user);
 
@@ -20,9 +20,9 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
           : (otherMember?.fullname || 'Người dùng');
 
         // 3. Logic hiển thị Ảnh đại diện (Avatar)
-        const displayAvatar = otherMember?.avatar 
-          ? `http://localhost:5000${otherMember.avatar}` 
-          : "http://localhost:5000/uploads/default-avatar.png";
+        const displayAvatar = otherMember?.avatar
+          ? `${API_BASE_URL}${otherMember.avatar}`
+          : `${API_BASE_URL}/uploads/default-avatar.png`;
         const members = conversation?.members || [];
         const totalMembers = members.length;
         // 4. Xử lý tin nhắn cuối
@@ -44,79 +44,89 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
             }
           }
         }
+        const myReadStatus = conversation.membersReadStatus?.find(
+          (status) => String(status.userId) === String(currentUser?.idUser)
+        );
+        const isUnread = conversation.lastMessage &&
+          String(conversation.lastSenderId) !== String(currentUser?.idUser) &&
+          (!myReadStatus || new Date(myReadStatus.seenAt) < new Date(conversation.updatedAt));
 
         return (
           <div
             key={conversation._id}
             type="button"
-            className={`flex w-full items-center gap-3 border-b border-[#f1f3f5] px-2 py-2 text-left transition ${
-              String(selectedConversation?._id) === String(conversation._id)
-                ? "bg-[#E8EDFF]"
-                : "bg-white hover:bg-[#f8f9fa]"
-            }`}
+            className={`flex w-full items-center gap-3 border-b border-[#f1f3f5] px-2 py-2 text-left transition ${String(selectedConversation?._id) === String(conversation._id)
+              ? "bg-[#E8EDFF]"
+              : "bg-white hover:bg-[#f8f9fa]"
+              }`}
             onClick={() => onSelectConversation(conversation)}
           >
             {/* AVATAR */}
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-[18px] font-semibold text-[#3b5bdb]">
               <button className={`relative size-full ${isGroup ? 'cursor-default' : 'cursor-pointer'}`} onClick={() => {
-                if(isGroup) return;
+                if (isGroup) return;
                 setOpenProfile(otherMember)
-                }}>
-                  {isGroup ? (
-                    conversation?.avatar ? (
-                      <img
-                        src={`http://localhost:5000${conversation?.avatar}`}
-                        alt={displayName}
-                        className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
-                      />
-                    )
-                    : (
-                    <div className="relative size-full">
-                      {/* Ảnh thành viên 1 */}
-                      <img 
-                        src={`http://localhost:5000${members[0]?.avatar || '/uploads/default-avatar.png'}`} 
-                        className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20" 
-                        alt="mem1"
-                      />
-                      {/* Ảnh thành viên 2 */}
-                      <img 
-                        src={`http://localhost:5000${members[1]?.avatar || '/uploads/default-avatar.png'}`} 
-                        className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10" 
-                        alt="mem2"
-                      />
-                      {/* Ảnh thành viên 3 */}
-                      <img 
-                        src={`http://localhost:5000${members[2]?.avatar || '/uploads/default-avatar.png'}`} 
-                        className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30" 
-                        alt="mem3"
-                      />
-                      {/* Vòng tròn số lượng */}
-                      <div className="absolute bottom-0 right-0.5 size-7 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
-                        {totalMembers}
-                      </div>
-                    </div>
-                    )
-                  ) : (
+              }}>
+                {isGroup ? (
+                  conversation?.avatar ? (
                     <img
-                      src={displayAvatar}
+                      src={`${API_BASE_URL}${conversation?.avatar}`}
                       alt={displayName}
                       className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
                     />
-                  )}
+                  )
+                    : (
+                      <div className="relative size-full">
+                        {/* Ảnh thành viên 1 */}
+                        <img
+                          src={`${API_BASE_URL}${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                          className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20"
+                          alt="mem1"
+                        />
+                        {/* Ảnh thành viên 2 */}
+                        <img
+                          src={`${API_BASE_URL}${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                          className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10"
+                          alt="mem2"
+                        />
+                        {/* Ảnh thành viên 3 */}
+                        <img
+                          src={`${API_BASE_URL}${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                          className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30"
+                          alt="mem3"
+                        />
+                        {/* Vòng tròn số lượng */}
+                        <div className="absolute bottom-0 right-0.5 size-7 rounded-full border-2 border-white bg-[#e2e6ea] flex items-center justify-center text-[12px] font-bold text-gray-600 shadow-sm z-40">
+                          {totalMembers}
+                        </div>
+                      </div>
+                    )
+                ) : (
+                  <img
+                    src={displayAvatar}
+                    alt={displayName}
+                    className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
+                  />
+                )}
               </button>
             </div>
 
             {/* INFO */}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+              <div className={`flex items-center gap-1.5 text-sm ${isUnread ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
                 {isGroup && <UsersRound size={14} className="text-gray-500 shrink-0" fill="#82837a" />}
                 {displayName}
               </div>
-              <div className="truncate break-all text-[13px] text-muted-foreground">
+              <div className={`truncate break-all text-[13px] ${isUnread ? 'font-bold text-gray-900' : 'text-muted-foreground'}`}>
                 {messagePrefix}
                 {shortLastMessage}
               </div>
             </div>
+
+            {/* BLUE DOT FOR UNREAD MESSAGES */}
+            {isUnread && (
+              <div className="size-2.5 rounded-full bg-[#3b5bdb] shrink-0 ml-auto mr-1" />
+            )}
           </div>
         );
       })}
