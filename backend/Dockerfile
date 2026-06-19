@@ -16,4 +16,4 @@ COPY . .
 EXPOSE 5000
 
 # Lệnh để khởi chạy server ở chế độ phát triển
-CMD ["node", "server.js"]
+CMD ["npm", "run", "dev"]

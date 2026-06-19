@@ -179,3 +179,34 @@ export const sendImage = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+export const getMediaArchive = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const user = await User.findOne({ userId: req.user._id });
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+    const messages = await Message.find({
+      conversationId,
+      deletedBy: { $ne: user._id },
+      $or: [
+        { type: "image" },
+        { type: "file" },
+        { type: "text", content: { $regex: "https?://" } }
+      ]
+    }).sort({ createdAt: -1 });
+    const result = messages.map(m => ({
+      messageId: m._id,
+      senderId: m.sender,
+      content: m.content,
+      type: m.type || "text",
+      image: m.image || null,
+      createdAt: m.createdAt,
+      isDeleted: m.isDeleted || false
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

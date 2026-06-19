@@ -62,7 +62,14 @@ const message = {
             throw error.response || { message: "Loi gui anh" };
         }
     },
+    getMediaArchive: async (conversationId) => {
+        try {
+            const response = await api.get(`/message/getMediaArchive/${conversationId}`);
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Lỗi lấy kho lưu trữ" };
+        }
+    },
 
 }
-
 export default message

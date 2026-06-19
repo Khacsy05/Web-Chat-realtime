@@ -25,7 +25,7 @@ import { div } from 'framer-motion/client';
 import AddMembersModal from './AddMembersModal';
 import useMessStore from '@/stores/useMessStore';
 
-const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMembers, onOpenMediaArchive }) => {
+const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMembers, onOpenMediaArchive, archiveItems }) => {
   const currentUser = useAuthStore((state) => state.user);
   const setConversations = useChatStore((state) => state.setConversations);
 
@@ -59,9 +59,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
   const avatarDisplay = isGroup
     ? (`http://localhost:5000${selectedConversation?.avatar || "/uploads/default-avatar.png"}`)
     : (`http://localhost:5000${otherMember?.avatar || "/uploads/default-avatar.png"}`);
-  const messages = useMessStore((state) => state.mess) || [];
   // Lọc lấy toàn bộ tin nhắn có type là 'image' và không bị thu hồi (isDeleted)
-  const realMediaItems = messages.filter(item => item.type === 'image' && !item.isDeleted).slice(0, 8);
+  const realMediaItems = archiveItems.filter(item => item.type === 'image' && !item.isDeleted).slice(0, 8);
   // Giả lập data danh sách ảnh/video gửi trong đoạn chat để render grid
   const mediaItems = [
     { id: 1, src: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150" },
@@ -328,7 +327,7 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
           <div className="px-4 pb-4 animate-fade-in">
             <div className="grid grid-cols-4 gap-1.5">
               {realMediaItems?.map((item) => (
-                <div key={item.id} className="aspect-square w-full overflow-hidden rounded-sm bg-gray-100 border border-gray-200/50 cursor-pointer hover:opacity-90">
+                <div key={item._id} className="aspect-square w-full overflow-hidden rounded-sm bg-gray-100 border border-gray-200/50 cursor-pointer hover:opacity-90">
                   <img src={`http://localhost:5000${item?.image}`} alt="media" className="h-full w-full object-cover" />
                 </div>
               ))}

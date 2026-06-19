@@ -3,11 +3,13 @@ import ConversationView from './ConversationView';
 import DetailsPanel from './DetailsPanel';
 import GroupMembersPanel from './GroupMembersPanel';
 import MediaArchiveModal from './MediaArchiveModal';
-
+import messageService from '@/service/message';
 const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelectConversation }) => {
   const [isOpenRightPage, setIsOpenRightPage] = useState(
     () => typeof window !== 'undefined' && window.innerWidth >= 1024
   );
+  const [isLoading, setIsLoading] = useState(false);
+  const [archiveItems, setArchiveItems] = useState([]);
   const [rightView, setRightView] = useState("details");
   useEffect(() => {
     let lastWidth = window.innerWidth;
@@ -33,6 +35,22 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
   const handleMessageEvent = (payload) => {
     onMessageEvent?.(payload);
   };
+  useEffect(() => {
+    if (!selectedConversation?._id) return;
+    const fetchArchive = async () => {
+      setIsLoading(true);
+      try {
+        const res = await messageService.getMediaArchive(selectedConversation?._id);
+        setArchiveItems(res.data || []);
+      } catch (error) {
+        console.error("Lỗi khi tải kho lưu trữ:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    // Hàm nhóm các vật phẩm theo ngày gửi (Giống "Ngày 17 Tháng 6" trong ảnh)
+    fetchArchive();
+  }, [selectedConversation?._id]);
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
@@ -55,6 +73,8 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
               onMobileBack={onMobileBack}
               onOpenMembers={() => setRightView("members")} // ⭐
               onOpenMediaArchive={() => setRightView("media-archive")}
+              archiveItems={archiveItems}
+
             />
           )}
 
@@ -67,6 +87,9 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
 
           {rightView === "media-archive" && (
             <MediaArchiveModal
+              isLoading={isLoading}
+              archiveItems={archiveItems}
+              conversationId={selectedConversation?._id}
               onClose={() => setRightView("details")}
             />
           )}
@@ -86,6 +109,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
             <div className="flex-1 overflow-y-auto">
               {rightView === "details" && (
                 <DetailsPanel
+                  archiveItems={archiveItems}
                   selectedConversation={selectedConversation}
                   onSelectConversation={onSelectConversation}
                   onMobileBack={onMobileBack}
@@ -103,6 +127,9 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
 
               {rightView === "media-archive" && (
                 <MediaArchiveModal
+                  isLoading={isLoading}
+                  archiveItems={archiveItems}
+                  conversationId={selectedConversation?._id}
                   onClose={() => setRightView("details")}
                 />
               )}

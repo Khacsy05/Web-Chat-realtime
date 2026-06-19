@@ -1,21 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, ChevronDown, Image, FileText, Link2 } from 'lucide-react';
-import useMessStore from '@/stores/useMessStore';
 import ImageViewer from '@/components/ImageViewer';
 
 
-const MediaArchiveModal = ({ onClose }) => {
+const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems }) => {
   const [activeTab, setActiveTab] = useState('media'); // 'media' | 'files' | 'links'
   const [viewingImg, setViewingImg] = useState(null);
-
   // Lấy toàn bộ tin nhắn thực tế từ store
-  const messages = useMessStore((state) => state.mess) || [];
-
   // Lọc dữ liệu theo từng Tab
-  const mediaItems = messages.filter(m => m.type === 'image' && !m.isDeleted);
-  const fileItems = messages.filter(m => m.type === 'file' && !m.isDeleted);
-  const linkItems = messages.filter(m => m.type === 'text' && m.content?.includes('http') && !m.isDeleted);
-
+  const mediaItems = archiveItems.filter(m => m.type === 'image' && !m.isDeleted);
+  const fileItems = archiveItems.filter(m => m.type === 'file' && !m.isDeleted);
+  const linkItems = archiveItems.filter(m => m.type === 'text' && m.content?.includes('http') && !m.isDeleted);
   // Hàm nhóm các vật phẩm theo ngày gửi (Giống "Ngày 17 Tháng 6" trong ảnh)
   const groupItemsByDate = (items) => {
     const groups = {};
@@ -89,87 +84,94 @@ const MediaArchiveModal = ({ onClose }) => {
         {/* NỘI DUNG SỬ DỤNG SCROLL */}
         <div className="flex-1 overflow-y-auto p-4 bg-white custom-scrollbar flex flex-col">
 
-          {/* TAB 1: ẢNH / VIDEO */}
-          {activeTab === 'media' && (
-            Object.keys(groupedMedia).length === 0 ? (
-              <div className="flex flex-col items-center justify-center pt-20 text-gray-400 gap-2">
-                <Image size={40} className="stroke-[1.2]" />
-                <span className="text-xs italic">Chưa có ảnh hoặc video nào</span>
-              </div>
-            ) : (
-              Object.keys(groupedMedia).map((dateLabel) => (
-                <div key={dateLabel} className="mb-6">
-                  {/* Tiêu đề ngày gửi */}
-                  <h3 className="text-[14px] font-bold text-gray-800 mb-3">{dateLabel}</h3>
-                  {/* Grid ảnh 3 cột giống hệt Zalo */}
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {groupedMedia[dateLabel].map((item) => (
-                      <div
-                        key={item._id || item.messageId}
-                        onClick={() => setViewingImg(`http://localhost:5000${item.image}`)}
-                        className="aspect-square w-full overflow-hidden bg-gray-100 rounded-sm cursor-pointer hover:brightness-90 transition-all border border-gray-150"
-                      >
-                        <img
-                          src={`http://localhost:5000${item.image}`}
-                          alt="archive-media"
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center pt-20 text-gray-400 gap-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="text-xs">Đang tải kho lưu trữ...</span>
+            </div>
+          ) : (
+            <>
+              {/* TAB 1: ẢNH / VIDEO */}
+              {activeTab === 'media' && (
+                Object.keys(groupedMedia).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center pt-20 text-gray-400 gap-2">
+                    <Image size={40} className="stroke-[1.2]" />
+                    <span className="text-xs italic">Chưa có ảnh hoặc video nào</span>
+                  </div>
+                ) : (
+                  Object.keys(groupedMedia).map((dateLabel) => (
+                    <div key={dateLabel} className="mb-6">
+                      <h3 className="text-[14px] font-bold text-gray-800 mb-3">{dateLabel}</h3>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {groupedMedia[dateLabel].map((item) => (
+                          <div
+                            key={item._id || item.messageId}
+                            onClick={() => setViewingImg(`http://localhost:5000${item.image}`)}
+                            className="aspect-square w-full overflow-hidden bg-gray-100 rounded-sm cursor-pointer hover:brightness-90 transition-all border border-gray-150"
+                          >
+                            <img
+                              src={`http://localhost:5000${item.image}`}
+                              alt="archive-media"
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
+              {/* TAB 2: FILES */}
+              {activeTab === 'files' && (
+                fileItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center pt-20 text-gray-400 gap-2">
+                    <FileText size={40} className="stroke-[1.2]" />
+                    <span className="text-xs italic">Chưa có file tài liệu nào</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {fileItems.map((item) => (
+                      <div key={item.messageId || item._id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
+                        <div className="p-2 bg-red-50 text-red-500 rounded-md">
+                          <FileText size={20} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-medium text-gray-800 truncate">{item.content || "Tài liệu đính kèm"}</p>
+                          <span className="text-[11px] text-gray-400">File tài liệu</span>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              ))
-            )
-          )}
+                )
+              )}
 
-          {/* TAB 2: FILES */}
-          {activeTab === 'files' && (
-            fileItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center pt-20 text-gray-400 gap-2">
-                <FileText size={40} className="stroke-[1.2]" />
-                <span className="text-xs italic">Chưa có file tài liệu nào</span>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {fileItems.map((item) => (
-                  <div key={item._id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
-                    <div className="p-2 bg-red-50 text-red-500 rounded-md">
-                      <FileText size={20} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium text-gray-800 truncate">{item.content || "Tài liệu đính kèm"}</p>
-                      <span className="text-[11px] text-gray-400">File tài liệu</span>
-                    </div>
+              {/* TAB 3: LINKS */}
+              {activeTab === 'links' && (
+                linkItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center pt-20 text-gray-400 gap-2">
+                    <Link2 size={40} className="stroke-[1.2]" />
+                    <span className="text-xs italic">Chưa có liên kết (Link) nào</span>
                   </div>
-                ))}
-              </div>
-            )
-          )}
-
-          {/* TAB 3: LINKS */}
-          {activeTab === 'links' && (
-            linkItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center pt-20 text-gray-400 gap-2">
-                <Link2 size={40} className="stroke-[1.2]" />
-                <span className="text-xs italic">Chưa có liên kết (Link) nào</span>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {linkItems.map((item) => (
-                  <a
-                    key={item._id}
-                    href={item.content}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3 bg-blue-50/40 rounded-lg border border-blue-150/40 hover:bg-blue-50 block min-w-0"
-                  >
-                    <p className="text-[13px] text-blue-600 font-medium truncate mb-1">{item.content}</p>
-                    <span className="text-[11px] text-gray-400">Liên kết được chia sẻ</span>
-                  </a>
-                ))}
-              </div>
-            )
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {linkItems.map((item) => (
+                      <a
+                        key={item.messageId || item._id}
+                        href={item.content}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 bg-blue-50/40 rounded-lg border border-blue-150/40 hover:bg-blue-50 block min-w-0"
+                      >
+                        <p className="text-[13px] text-blue-600 font-medium truncate mb-1">{item.content}</p>
+                        <span className="text-[11px] text-gray-400">Liên kết được chia sẻ</span>
+                      </a>
+                    ))}
+                  </div>
+                )
+              )}
+            </>
           )}
 
         </div>

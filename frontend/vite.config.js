@@ -16,5 +16,8 @@ export default defineConfig({
     port: 5173,       // Đảm bảo cổng này khớp với file docker-compose.yml
     host: true,       // Cho phép Docker "mở cửa" kết nối ra máy thật
     strictPort: true, // Nếu cổng 5173 bị kẹt thì báo lỗi luôn chứ không tự đổi cổng khác
+    watch: {
+      usePolling: true, // Kích hoạt polling để HMR hoạt động mượt mà trên Windows + Docker
+    }
   }
 })

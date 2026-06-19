@@ -7,6 +7,9 @@ services:
     container_name: mern-backend
     ports:
       - "5000:5000"
+    volumes:
+      - ../backend:/app
+      - /app/node_modules
     environment:
       # QUAN TRỌNG: Đổi localhost thành 'database' để kết nối nội bộ giữa các container
       - MONGO_URI=mongodb+srv://khacsy0:khacsy@chatrealtime.yl0la9b.mongodb.net/ChatRealTime?retryWrites=true&w=majority
@@ -17,6 +20,9 @@ services:
     container_name: mern-frontend
     ports:
       - "5173:5173"
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
     stdin_open: true # Giữ terminal mở để React không bị tự động tắt
     depends_on:
       - backend
