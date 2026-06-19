@@ -53,7 +53,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
   }, [selectedConversation?._id]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden">
       <main className="flex-1 min-h-0 overflow-hidden">
         <ConversationView
           selectedConversation={selectedConversation}

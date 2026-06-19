@@ -2,6 +2,7 @@ import conversation from "@/service/conversation";
 import useFriendStore from "@/stores/useFriendStore";
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 const AddMembersModal = ({ conversations, onClose }) => {
   const { friends, loading, fetchFriends } = useFriendStore();
@@ -66,8 +67,8 @@ const AddMembersModal = ({ conversations, onClose }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
 
       {/* overlay */}
       <div
@@ -76,7 +77,7 @@ const AddMembersModal = ({ conversations, onClose }) => {
       />
 
       {/* modal */}
-      <div className="relative w-[520px] max-h-[80vh] bg-white rounded-xl shadow-xl flex flex-col">
+      <div className="relative w-full max-w-[520px] max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden">
 
         {/* search */}
         <div className="p-3 border-b">
@@ -154,7 +155,8 @@ const AddMembersModal = ({ conversations, onClose }) => {
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

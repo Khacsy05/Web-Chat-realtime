@@ -1,5 +1,6 @@
 import Modal from "@/components/Modal";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import AddMembersModal from "./AddMembersModal";
 import { MoreHorizontal, X } from "lucide-react";
 import conversation from "@/service/conversation";
@@ -149,7 +150,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                                             : m._id
                                     )
                                 }
-                                className="opacity-0 group-hover:opacity-100"
+                                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-full hover:bg-gray-100"
                             >
                                 <MoreHorizontal />
                             </button>
@@ -192,7 +193,7 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
             </div>
 
             {/* TRANSFER ADMIN MODAL */}
-            {openTransferModal && (
+            {openTransferModal && createPortal(
                 <div className="fixed inset-0 z-[999] flex items-center justify-center">
 
                     {/* Overlay chặn hover phía sau */}
@@ -291,11 +292,12 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* CONFIRM MODAL */}
-            {confirmModal.isOpen && (
+            {confirmModal.isOpen && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
                     {/* Lớp nền mờ đen phía sau */}
                     <div
@@ -347,7 +349,8 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
             {openAddMembers && (
                 <AddMembersModal

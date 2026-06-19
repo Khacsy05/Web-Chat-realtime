@@ -51,7 +51,7 @@ const HomePage = () => {
 
       {selectedConversation ? (
         <div
-          className={`flex flex-1 flex-col ${
+          className={`flex flex-1 flex-col min-w-0 w-full ${
             !mobileShowChat ? "hidden md:flex" : "flex"
           }`}
         >

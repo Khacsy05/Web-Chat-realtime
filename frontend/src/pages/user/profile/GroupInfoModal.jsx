@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Pencil, ArrowLeft, MoreHorizontal, Settings, LogOut, ArrowRight, Camera, X } from 'lucide-react';
 import conversation from '@/service/conversation';
 import useChatStore from '@/stores/useChatStore';
@@ -253,7 +254,7 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                     )}
                 </div>
 
-                {openTransferModal && (
+                {openTransferModal && createPortal(
                     <div className="fixed inset-0 z-[999] flex items-center justify-center">
 
                         {/* Overlay chặn hover phía sau */}
@@ -351,10 +352,11 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
-                {confirmModal.isOpen && (
+                {confirmModal.isOpen && createPortal(
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
                         {/* Lớp nền mờ đen phía sau */}
                         <div
@@ -406,7 +408,8 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
                 <ImageViewer src={viewer} onClose={() => setViewer(null)} />
             </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import useAuthStore from '@/stores/useAuthStore';
 import useChatStore from '@/stores/useChatStore';
 import {
@@ -395,8 +396,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
           </button>
         </div>
       )}
-      {/* Confirm Modal giữ nguyên bản của bạn */}
-      {confirmModal.isOpen && (
+      {/* Confirm Modal giữ nguyên bản của bạn nhưng qua Portal */}
+      {confirmModal.isOpen && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeConfirmDialog} />
           <div className="relative w-full max-w-sm transform overflow-hidden rounded-xl bg-white p-6 shadow-xl border border-gray-100 scale-in-center">
@@ -435,7 +436,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {openAddMembers && (
         <AddMembersModal

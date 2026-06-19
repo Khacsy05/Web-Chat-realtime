@@ -309,7 +309,7 @@ const ConversationView = ({
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="flex h-full w-full min-w-0 min-h-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b bg-white px-3 py-3">
         <div className="flex items-center justify-between">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
