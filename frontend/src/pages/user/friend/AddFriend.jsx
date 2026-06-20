@@ -85,9 +85,13 @@ const AddFriend = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-    fetchRequests();
-  }, [fetchUsers, fetchRequests]);
+    if (allUser.length === 0) {
+      fetchUsers();
+    }
+    if (sentRequests.length === 0) {
+      fetchRequests();
+    }
+  }, [fetchUsers, fetchRequests, allUser.length, sentRequests.length]);
 
   const normalized = searchValue.trim().toLowerCase();
   const filteredFriend = allUser.filter((item) =>

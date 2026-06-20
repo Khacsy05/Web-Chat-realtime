@@ -47,8 +47,11 @@ const PendingRequest = () => {
   const showBackButton = isNarrowFromLayout ?? isNarrowScreen;
 
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+    // Only call fetchRequests if data is empty to prevent redundant calls on tab switching
+    if (sentRequests.length === 0 && receivedRequests.length === 0) {
+      fetchRequests();
+    }
+  }, [fetchRequests, sentRequests.length, receivedRequests.length]);
 
   // --- CÁC HÀM XỬ LÝ CHỨC NĂNG ---
   const executeCancelRequest = async (idRequest) => {
