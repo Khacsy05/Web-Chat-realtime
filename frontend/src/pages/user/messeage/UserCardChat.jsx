@@ -49,7 +49,7 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
         );
         const isUnread = conversation.lastMessage &&
           String(conversation.lastSenderId) !== String(currentUser?.idUser) &&
-          (!myReadStatus || new Date(myReadStatus.seenAt) < new Date(conversation.updatedAt));
+          (!myReadStatus || new Date(myReadStatus.seenAt).getTime() < new Date(conversation.updatedAt).getTime() - 1000);
 
         return (
           <div

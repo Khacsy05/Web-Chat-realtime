@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Conversation from "../models/Conversation.js";
 import User from "../models/User.js";
 import Message from "../models/Message.js";
+import Notification from "../models/Notification.js";
 import { io } from "../server.js";
 import { onlineUsers } from "../config/socketStore.js";
 
@@ -291,6 +292,17 @@ export const removeMember = async (req, res) => {
     });
 
     // 🔥 notify user bị kick / rời
+    const isKick = !isSelfLeave;
+    if (isKick) {
+      await Notification.create({
+        recipient: memberId,
+        sender: actor._id,
+        type: "kick",
+        content: `Bạn đã bị ${actor.fullname} xóa khỏi nhóm ${conversation.nameGroup || "Trò chuyện"}`,
+        relatedId: conversationId
+      });
+    }
+
     const kickedSocket = onlineUsers.get(String(memberId));
     if (kickedSocket) {
       io.to(kickedSocket).emit("receive-message", {
@@ -305,6 +317,12 @@ export const removeMember = async (req, res) => {
       io.to(kickedSocket).emit("member-removed", {
         conversationId,
       });
+      if (isKick) {
+        io.to(kickedSocket).emit("group_kick_notification", {
+          conversationId,
+          message: `Bạn đã bị ${actor.fullname} xóa khỏi nhóm ${conversation.nameGroup || "Trò chuyện"}`
+        });
+      }
     }
 
     // 🔥 notify remaining members and send system message

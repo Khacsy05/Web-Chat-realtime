@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import Notification from "../models/Notification.js";
 import { io } from "../server.js";
 import { onlineUsers } from "../config/socketStore.js";
 import mongoose from "mongoose";
@@ -60,11 +61,24 @@ export const friendRequest = async (req,res) => {
         
         const newRequest = await request.save();
 
+        // Save Notification to Database
+        await Notification.create({
+            recipient: to,
+            sender: from,
+            type: "friend_request",
+            content: `${user.fullname} đã gửi cho bạn một lời mời kết bạn`,
+            relatedId: from
+        });
+
         const socketId = onlineUsers.get(to.toString());
         if (socketId) {
             io.to(socketId).emit("friend_request", {
-                from,
-                message: "Bạn có lời mời kết bạn mới"
+                from: {
+                    _id: user._id,
+                    fullname: user.fullname,
+                    avatar: user.avatar
+                },
+                message: `${user.fullname} đã gửi cho bạn một lời mời kết bạn`
             });
         }
 
@@ -204,11 +218,31 @@ export const acceptRequest = async (req, res) => {
         request.status = "accepted";
         await request.save();
 
+        // 1. Delete the incoming friend request notification from the current user's (request.to) perspective
+        await Notification.deleteOne({
+            recipient: user._id,
+            sender: request.from,
+            type: "friend_request"
+        });
+
+        // 2. Create accept notification for request.from
+        await Notification.create({
+            recipient: request.from,
+            sender: user._id,
+            type: "accept_friend",
+            content: `${user.fullname} đã chấp nhận lời mời kết bạn`,
+            relatedId: user._id
+        });
+
         const socketId = onlineUsers.get(request.from.toString());
         if (socketId) {
             io.to(socketId).emit("accept_friend", {
-                to: request.to,
-                message: "Da chap nhan ket ban"
+                from: {
+                    _id: user._id,
+                    fullname: user.fullname,
+                    avatar: user.avatar
+                },
+                message: `${user.fullname} đã chấp nhận lời mời kết bạn`
             });
         }
 
@@ -235,14 +269,36 @@ export const rejectRequest = async (req, res) => {
       return res.status(403).json({ message: "Không có quyền" });
     }
 
+    // Capture IDs before deleting the request
+    const fromUserId = request.from;
+
     await request.deleteOne();
     
+    // 1. Delete the friend_request notification
+    await Notification.deleteOne({
+        recipient: user._id,
+        sender: fromUserId,
+        type: "friend_request"
+    });
 
-    const socketId = onlineUsers.get(request.from.toString());
+    // 2. Create reject notification
+    await Notification.create({
+        recipient: fromUserId,
+        sender: user._id,
+        type: "reject_friend",
+        content: `${user.fullname} đã từ chối lời mời kết bạn`,
+        relatedId: user._id
+    });
+
+    const socketId = onlineUsers.get(fromUserId.toString());
         if (socketId) {
             io.to(socketId).emit("reject_friend", {
-                to: request.to,
-                message: "Da tu choi ket ban"
+                from: {
+                    _id: user._id,
+                    fullname: user.fullname,
+                    avatar: user.avatar
+                },
+                message: `${user.fullname} đã từ chối lời mời kết bạn`
             });
         }
 
@@ -269,11 +325,21 @@ export const cancelRequest = async (req, res) => {
       return res.status(403).json({ message: "Không có quyền huỷ" });
     }
 
+    const toUserId = request.to;
+
     await request.deleteOne();
 
-    const socketId = onlineUsers.get(request.to.toString());
+    // Delete the pending friend_request notification on the recipient's end
+    await Notification.deleteOne({
+        recipient: toUserId,
+        sender: user._id,
+        type: "friend_request"
+    });
+
+    const socketId = onlineUsers.get(toUserId.toString());
         if (socketId) {
             io.to(socketId).emit("cancel_friend", {
+                fromId: user._id,
                 message: "Lời mời kết bạn đã bị huỷ"
             });
         }
@@ -342,6 +408,15 @@ export const unFriend = async (req, res) => {
         const targetId = request.from.toString() === user._id.toString() 
         ? request.to.toString() 
         : request.from.toString();
+
+        // Save notification to DB
+        await Notification.create({
+            recipient: targetId,
+            sender: user._id,
+            type: "unfriend",
+            content: `${user.fullname} đã hủy kết bạn với bạn`,
+            relatedId: user._id
+        });
 
         const socketId = onlineUsers.get(targetId);
         if (socketId) {

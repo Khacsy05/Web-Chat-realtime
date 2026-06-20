@@ -4,9 +4,13 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import useAuthStore from "@/stores/useAuthStore";
 import socket from "@/lib/socket";
+import useNotificationStore from "@/stores/useNotificationStore";
+import { toast } from "sonner";
 
 export function AppLayout() {
   const currentUser = useAuthStore((state) => state.user);
+  const initNotificationSocket = useNotificationStore((state) => state.initSocket);
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
 
   useEffect(() => {
     if (!currentUser?.idUser) return;
@@ -24,11 +28,13 @@ export function AppLayout() {
     }
 
     socket.on("connect", handleConnect);
+    fetchNotifications();
+    initNotificationSocket();
 
     return () => {
       socket.off("connect", handleConnect);
     };
-  }, [currentUser?.idUser]);
+  }, [currentUser?.idUser, initNotificationSocket, fetchNotifications]);
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
       <Header />

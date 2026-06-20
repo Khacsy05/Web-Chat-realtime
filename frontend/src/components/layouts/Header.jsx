@@ -7,23 +7,32 @@ import Modal from "../Modal";
 import useMessStore from "@/stores/useMessStore";
 import useChatStore from "@/stores/useChatStore";
 import useFriendStore from "@/stores/useFriendStore";
+import useNotificationStore from "@/stores/useNotificationStore";
 import socket from "@/lib/socket";
+import { X } from "lucide-react";
 export function Header({ onNavigate }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const clearMessages = useMessStore((s) => s.clearMessages);
   const setConversations = useChatStore((s) => s.setConversations);
   const clearFriends = useFriendStore((s) => s.clearFriends);
+  const notifications = useNotificationStore((s) => s.notifications);
+  const markAllAsRead = useNotificationStore((s) => s.markAllAsRead);
+  const removeNotification = useNotificationStore((s) => s.removeNotification);
+  const clearAllNotifications = useNotificationStore((s) => s.clearAll);
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
     clearAuth();
     clearMessages();
     setConversations([]);
     clearFriends();
+    clearAllNotifications();
     socket.disconnect();
     setDropOpen(false);
     navigate("/login");
@@ -37,20 +46,20 @@ export function Header({ onNavigate }) {
     : `${API_BASE_URL}/uploads/default-avatar.png`;
   useEffect(() => {
     const handleGlobalClick = () => {
-      // Khi bấm vào bất cứ đâu trên màn hình, ta đóng dropdown
       if (dropOpen) {
         setDropOpen(false);
       }
+      if (showNotifications) {
+        setShowNotifications(false);
+      }
     };
 
-    // Đăng ký sự kiện click toàn cục
     window.addEventListener('click', handleGlobalClick);
 
     return () => {
-      // Xóa sự kiện khi thoát trang
       window.removeEventListener('click', handleGlobalClick);
     };
-  }, [dropOpen]);
+  }, [dropOpen, showNotifications]);
   return (
     <div>
       <header className="bg-[#3b4288] text-white shadow-md">
@@ -65,14 +74,82 @@ export function Header({ onNavigate }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-full hover:bg-white/10 transition">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
+            <div className="relative">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNotifications(!showNotifications);
+                  setDropOpen(false);
+                  if (!showNotifications) {
+                    markAllAsRead();
+                  }
+                }}
+                className="relative p-2 rounded-full hover:bg-white/10 transition"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
 
-
-
-            </button>
+              {showNotifications && (
+                <div 
+                  className="absolute right-0 mt-2 w-80 bg-white text-gray-700 rounded-xl shadow-xl z-50 overflow-hidden border border-gray-100 flex flex-col max-h-96"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+                    <span className="font-semibold text-sm">Thông báo</span>
+                    {notifications.length > 0 && (
+                      <button 
+                        onClick={() => clearAllNotifications()}
+                        className="text-xs text-blue-500 hover:text-blue-600 font-medium"
+                      >
+                        Xóa tất cả
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-xs text-gray-400">
+                        Không có thông báo mới
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div key={n.id} className="p-3 flex items-start gap-2.5 hover:bg-gray-50/50 transition-colors group">
+                          {n.avatar ? (
+                            <img 
+                              src={`${API_BASE_URL}${n.avatar}`} 
+                              alt="avatar" 
+                              className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 border"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0 mt-0.5 font-bold text-[11px]">
+                              N
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] text-gray-800 leading-tight pr-4">{n.content}</p>
+                            <span className="text-[10px] text-gray-400 mt-1 block">
+                              {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <button 
+                            onClick={() => removeNotification(n.id)}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 p-0.5 rounded transition shrink-0"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="relative">
               <button

@@ -131,7 +131,7 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
       );
       const isUnread = item.lastMessage &&
         String(item.lastSenderId) !== String(currentUser?.idUser) &&
-        (!myStatus || new Date(myStatus.seenAt) < new Date(item.updatedAt));
+        (!myStatus || new Date(myStatus.seenAt).getTime() < new Date(item.updatedAt).getTime() - 1000);
       if (!isUnread) return false;
     }
 

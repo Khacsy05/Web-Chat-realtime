@@ -8,6 +8,7 @@ import routerUser from './Router/routerUser.js';
 import { onlineUsers } from './config/socketStore.js';
 import routerConversation from './Router/routerConversation.js';
 import routerMessage from './Router/routerMessage.js';
+import routerNotification from './Router/routerNotification.js';
 import cors from "cors";
 import User from './models/User.js';
 dotenv.config();
@@ -22,6 +23,7 @@ app.use("/api/auth", routerAuth);
 app.use("/api/user", routerUser);
 app.use("/api/conversation", routerConversation);
 app.use("/api/message", routerMessage);
+app.use("/api/notification", routerNotification);
 app.use("/uploads", express.static("uploads"));
 const server = http.createServer(app);
 
