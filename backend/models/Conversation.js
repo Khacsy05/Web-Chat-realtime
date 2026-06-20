@@ -66,5 +66,6 @@ const conversationSchema = mongoose.Schema({
     {
         timestamps: true
     })
-
+conversationSchema.index({ members: 1 });
+conversationSchema.index({ "membersReadStatus.userId": 1 });
 export default mongoose.model("Conversation", conversationSchema);

@@ -431,7 +431,7 @@ export const updateAvatar = async (req, res) => {
       { _id: conversationId },
       { avatar: avatarUrl },
       { returnDocument: 'after' }
-    ).populate("members");
+    ).populate("members", "fullname avatar isActive lastActive ");
     updated.members.forEach((member) => {
       // Lấy socketId của từng thành viên dựa vào ID của họ
       const socketId = onlineUsers.get(String(member._id));
@@ -512,7 +512,7 @@ export const markAsSeen = async (req, res) => {
     await conversation.save();
 
     // Populate members to respond with complete info
-    const updatedConversation = await Conversation.findById(conversationId).populate("members");
+    const updatedConversation = await Conversation.findById(conversationId).populate("members", "fullname avatar isActive lastActive");
 
     // Notify other online members via Socket
     updatedConversation.members.forEach((member) => {
