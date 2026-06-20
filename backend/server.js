@@ -32,7 +32,8 @@ const io = new Server(server, {
     origin: process.env.FRONTEND_URL,
     credentials: true,
     methods: ["GET", "POST"],
-  }
+  },
+  transports: ["polling", "websocket"]
 })
 
 
