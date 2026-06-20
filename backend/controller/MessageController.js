@@ -50,7 +50,7 @@ export const getMessages = async (req, res) => {
 
     // 1. ĐỔI THÀNH: Lấy limit + 1 phần tử để kiểm tra xem còn trang tiếp theo hay không
     const messages = await Message.find(query)
-      .populate("sender")
+      .populate("sender", "fullname avatar isActive lastActive")
       .sort({ _id: -1 })
       .limit(limit + 1);
 
@@ -126,7 +126,7 @@ export const revokeMessage = async (req, res) => {
       { new: true }
     );
 
-    const conversation = await Conversation.findById(conversationId).populate("members");
+    const conversation = await Conversation.findById(conversationId).populate("members", "fullname avatar isActive lastActive");
 
     conversation.members.forEach((member) => {
       const socketId = onlineUsers.get(String(member._id));

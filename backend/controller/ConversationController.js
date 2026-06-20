@@ -32,7 +32,7 @@ export const createOrGetConversation = async (req, res) => {
     let conversation = await Conversation.findOne({
       participantKey,
       isGroup: false,
-    }).populate("members");
+    }).populate("members", "fullname avatar isActive lastActive");
 
     if (conversation?.clearedBy?.includes(user._id)) {
       conversation = {
@@ -49,7 +49,7 @@ export const createOrGetConversation = async (req, res) => {
           isGroup: false,
         });
         conversation = await conversation.populate(
-          "members"
+          "members", "fullname avatar isActive lastActive"
         );
       } catch (error) {
         // 2 request song song: request sau bị trùng participantKey
@@ -57,7 +57,7 @@ export const createOrGetConversation = async (req, res) => {
           conversation = await Conversation.findOne({
             participantKey,
             isGroup: false,
-          }).populate("members");
+          }).populate("members", "fullname avatar isActive lastActive");
         } else {
           throw error;
         }
@@ -100,7 +100,7 @@ export const createGroupConversation = async (req, res) => {
     });
 
     const newGroup = await Conversation.findById(groupData._id).populate(
-      "members"
+      "members", "fullname avatar isActive lastActive"
     );
 
     // Chỉ báo cho đúng các thành viên của nhóm, và gửi payload đã populate
@@ -161,7 +161,7 @@ export const getUserConversations = async (req, res) => {
 
     // Thực hiện truy vấn dữ liệu từ DB
     const conversations = await Conversation.find(query)
-      .populate("members")
+      .populate("members", "fullname avatar isActive lastActive")
       .sort({ updatedAt: -1 })
       .limit(limit + 1);
 
@@ -190,7 +190,7 @@ export const deleteConversation = async (req, res) => {
       return res.status(400).json({ message: "Thiếu conversationId" });
     }
 
-    const conversation = await Conversation.findById(conversationId).populate("members");
+    const conversation = await Conversation.findById(conversationId).populate("members", "fullname avatar isActive lastActive");
 
     if (!conversation) {
       return res.status(404).json({ message: "Không tìm thấy conversation" });
@@ -268,7 +268,7 @@ export const removeMember = async (req, res) => {
       }
     );
     await conversation.save();
-    await conversation.populate("members");
+    await conversation.populate("members", "fullname avatar isActive lastActive");
 
     const actor = await User.findOne({ userId: req.user._id });
     const target = await User.findById(memberId);
@@ -379,7 +379,7 @@ export const addMember = async (req, res) => {
         updatedAt: Date.now()
       },
       { returnDocument: 'after' }
-    ).populate("members");
+    ).populate("members", "fullname avatar isActive lastActive");
 
     if (!conversation) {
       return res.status(404).json({ message: "Không tìm thấy nhóm" });
@@ -457,7 +457,7 @@ export const updateNameGroup = async (req, res) => {
       { _id: conversationId },
       { nameGroup: newGroupName },
       { returnDocument: 'after' }
-    ).populate("members");
+    ).populate("members", "fullname avatar isActive lastActive");
     updated.members.forEach((member) => {
       // Lấy socketId của từng thành viên dựa vào ID của họ
       const socketId = onlineUsers.get(String(member._id));

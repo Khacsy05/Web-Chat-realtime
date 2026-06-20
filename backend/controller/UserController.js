@@ -6,20 +6,20 @@ import { onlineUsers } from "../config/socketStore.js";
 import mongoose from "mongoose";
 
 
-export const friendRequest = async (req,res) => {
+export const friendRequest = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
         const from = user._id;
-        const to = req.body.to; 
-        if( !to) {
+        const to = req.body.to;
+        if (!to) {
             return res.status(404).json({
-                message : "Vui long nhap day du thong tin"
+                message: "Vui long nhap day du thong tin"
             })
         }
         const findTo = await User.findById(to);
-        if(!findTo){
+        if (!findTo) {
             return res.status(404).json({
-                message : "User khong ton tai"
+                message: "User khong ton tai"
             })
         }
 
@@ -38,7 +38,7 @@ export const friendRequest = async (req,res) => {
 
 
         if (existed) {
-            if(existed.status === "pending"){
+            if (existed.status === "pending") {
                 return res.status(400).json({ message: "Đã gửi lời mời rồi" });
             }
             if (existed.status === "accepted") {
@@ -58,7 +58,7 @@ export const friendRequest = async (req,res) => {
             from,
             to
         })
-        
+
         const newRequest = await request.save();
 
         // Save Notification to Database
@@ -84,15 +84,15 @@ export const friendRequest = async (req,res) => {
 
         res.status(200).json(newRequest);
     } catch (error) {
-        console.error("Loi khi goi friendRequest",error);
-        res.status(500).json({message: "Loi he thong"})
+        console.error("Loi khi goi friendRequest", error);
+        res.status(500).json({ message: "Loi he thong" })
     }
 }
 
-export const getAllUser = async (req,res) => {
+export const getAllUser = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
-        if(!user){
+        if (!user) {
             return res.status(400).json({
                 message: "User không tồn tại"
             })
@@ -103,16 +103,16 @@ export const getAllUser = async (req,res) => {
         });
         const excludeIds = [myId];
         relations.forEach(req => {
-            if(req.from.toString() === myId.toString()){
+            if (req.from.toString() === myId.toString()) {
                 excludeIds.push(req.to)
             }
-            else{
-                excludeIds.push(req.from) 
+            else {
+                excludeIds.push(req.from)
             }
         })
 
         const users = await User.find({
-            _id: {$nin:excludeIds}
+            _id: { $nin: excludeIds }
         })
         res.status(200).json(users)
     } catch (error) {
@@ -121,10 +121,10 @@ export const getAllUser = async (req,res) => {
     }
 }
 
-export const getAllFriend = async (req,res) => {
+export const getAllFriend = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
-        if(!user){
+        if (!user) {
             return res.status(400).json({
                 message: "User không tồn tại"
             })
@@ -144,14 +144,14 @@ export const getAllFriend = async (req,res) => {
 
         const total = await FriendRequest.countDocuments(query);
         const relations = await FriendRequest.find(dataQuery)
-        .sort({ _id: -1 })
-        .limit(limit + 1)
-        .populate("from to")
+            .sort({ _id: -1 })
+            .limit(limit + 1)
+            .populate("from to", "fullname avatar isActive lastActive")
 
-         const hasMore = relations.length > limit;
+        const hasMore = relations.length > limit;
         if (hasMore) relations.pop();
-        
-        if(!relations){
+
+        if (!relations) {
             return res.status(400).json({
                 message: "User không tồn tại"
             })
@@ -159,8 +159,8 @@ export const getAllFriend = async (req,res) => {
 
         const friends = relations.map(r => {
             return r.from._id.equals(user._id)
-            ? r.to
-            : r.from
+                ? r.to
+                : r.from
         })
 
         res.status(200).json({
@@ -170,43 +170,43 @@ export const getAllFriend = async (req,res) => {
             total
         })
     } catch (error) {
-        console.error("Loi khi goi getAllFriend",error);
-        res.status(500).json({message: "Loi he thong"})
+        console.error("Loi khi goi getAllFriend", error);
+        res.status(500).json({ message: "Loi he thong" })
     }
 }
 
-export const getReceivedRequest = async(req,res) => {
+export const getReceivedRequest = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
         const request = await FriendRequest.find({
             to: user._id,
             status: "pending"
-        }).populate("from")
+        }).populate("from", "fullname avatar isActive lastActive")
         res.json(request);
     } catch (error) {
-        console.error("Loi khi goi getReceivedFriend",error);
-        res.status(500).json({message: "Loi he thong"})
+        console.error("Loi khi goi getReceivedFriend", error);
+        res.status(500).json({ message: "Loi he thong" })
     }
 }
 
-export const getSentRequest = async(req,res) => {
+export const getSentRequest = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
         const request = await FriendRequest.find({
             from: user._id,
             status: "pending"
-        }).populate("to")
+        }).populate("to", "fullname avatar isActive lastActive")
         res.json(request);
     } catch (error) {
-        console.error("Loi khi goi getSentFriend",error);
-        res.status(500).json({message: "Loi he thong"})
+        console.error("Loi khi goi getSentFriend", error);
+        res.status(500).json({ message: "Loi he thong" })
     }
 }
 
 export const acceptRequest = async (req, res) => {
     try {
         const user = await User.findOne({ userId: req.user._id });
-        const {requestId} = req.body;
+        const { requestId } = req.body;
         const request = await FriendRequest.findById(requestId);
         if (!request) {
             return res.status(404).json({ message: "Không tìm thấy request" });
@@ -248,49 +248,49 @@ export const acceptRequest = async (req, res) => {
 
         res.json({ message: "Đã chấp nhận kết bạn" });
     } catch (error) {
-        console.error("Loi khi goi acceptFriend",error);
-        res.status(500).json({message: "Loi he thong"})
-    
+        console.error("Loi khi goi acceptFriend", error);
+        res.status(500).json({ message: "Loi he thong" })
+
     }
 }
 
 export const rejectRequest = async (req, res) => {
-  try {
-    const user = await User.findOne({ userId: req.user._id });
-    const { requestId } = req.body;
+    try {
+        const user = await User.findOne({ userId: req.user._id });
+        const { requestId } = req.body;
 
-    const request = await FriendRequest.findById(requestId);
+        const request = await FriendRequest.findById(requestId);
 
-    if (!request) {
-      return res.status(404).json({ message: "Không tìm thấy request" });
-    }
+        if (!request) {
+            return res.status(404).json({ message: "Không tìm thấy request" });
+        }
 
-    if (request.to.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: "Không có quyền" });
-    }
+        if (request.to.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: "Không có quyền" });
+        }
 
-    // Capture IDs before deleting the request
-    const fromUserId = request.from;
+        // Capture IDs before deleting the request
+        const fromUserId = request.from;
 
-    await request.deleteOne();
-    
-    // 1. Delete the friend_request notification
-    await Notification.deleteOne({
-        recipient: user._id,
-        sender: fromUserId,
-        type: "friend_request"
-    });
+        await request.deleteOne();
 
-    // 2. Create reject notification
-    await Notification.create({
-        recipient: fromUserId,
-        sender: user._id,
-        type: "reject_friend",
-        content: `${user.fullname} đã từ chối lời mời kết bạn`,
-        relatedId: user._id
-    });
+        // 1. Delete the friend_request notification
+        await Notification.deleteOne({
+            recipient: user._id,
+            sender: fromUserId,
+            type: "friend_request"
+        });
 
-    const socketId = onlineUsers.get(fromUserId.toString());
+        // 2. Create reject notification
+        await Notification.create({
+            recipient: fromUserId,
+            sender: user._id,
+            type: "reject_friend",
+            content: `${user.fullname} đã từ chối lời mời kết bạn`,
+            relatedId: user._id
+        });
+
+        const socketId = onlineUsers.get(fromUserId.toString());
         if (socketId) {
             io.to(socketId).emit("reject_friend", {
                 from: {
@@ -302,41 +302,41 @@ export const rejectRequest = async (req, res) => {
             });
         }
 
-    res.json({ message: "Đã từ chối kết bạn" });
-    
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+        res.json({ message: "Đã từ chối kết bạn" });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 };
 
 
 export const cancelRequest = async (req, res) => {
-  try {
-    const user = await User.findOne({ userId: req.user._id });
-    const { requestId } = req.body;
+    try {
+        const user = await User.findOne({ userId: req.user._id });
+        const { requestId } = req.body;
 
-    const request = await FriendRequest.findById(requestId);
+        const request = await FriendRequest.findById(requestId);
 
-    if (!request) {
-      return res.status(404).json({ message: "Không tìm thấy request" });
-    }
+        if (!request) {
+            return res.status(404).json({ message: "Không tìm thấy request" });
+        }
 
-    if (request.from.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: "Không có quyền huỷ" });
-    }
+        if (request.from.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: "Không có quyền huỷ" });
+        }
 
-    const toUserId = request.to;
+        const toUserId = request.to;
 
-    await request.deleteOne();
+        await request.deleteOne();
 
-    // Delete the pending friend_request notification on the recipient's end
-    await Notification.deleteOne({
-        recipient: toUserId,
-        sender: user._id,
-        type: "friend_request"
-    });
+        // Delete the pending friend_request notification on the recipient's end
+        await Notification.deleteOne({
+            recipient: toUserId,
+            sender: user._id,
+            type: "friend_request"
+        });
 
-    const socketId = onlineUsers.get(toUserId.toString());
+        const socketId = onlineUsers.get(toUserId.toString());
         if (socketId) {
             io.to(socketId).emit("cancel_friend", {
                 fromId: user._id,
@@ -344,39 +344,39 @@ export const cancelRequest = async (req, res) => {
             });
         }
 
-    res.json({ message: "Đã huỷ lời mời" });
+        res.json({ message: "Đã huỷ lời mời" });
 
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 };
 
 export const getUserById = async (req, res) => {
-  try {
-    const user = await User.findOne({ userId: req.params.id });
+    try {
+        const user = await User.findOne({ userId: req.params.id });
 
-    res.json(user);
-  } catch (err) {
-    res.status(500).json(err.message);
-  }
+        res.json(user);
+    } catch (err) {
+        res.status(500).json(err.message);
+    }
 };
 
 export const updateAvatar = async (req, res) => {
-  try {
-    const authId = req.user._id;
+    try {
+        const authId = req.user._id;
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
+        const avatarUrl = `/uploads/${req.file.filename}`;
 
-    const updated = await User.findOneAndUpdate(
-      { userId: authId },
-      { avatar: avatarUrl },
-      { returnDocument: 'after' }
-    );
+        const updated = await User.findOneAndUpdate(
+            { userId: authId },
+            { avatar: avatarUrl },
+            { returnDocument: 'after' }
+        );
 
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json(err.message);
-  }
+        res.json(updated);
+    } catch (err) {
+        res.status(500).json(err.message);
+    }
 };
 
 export const unFriend = async (req, res) => {
@@ -385,29 +385,29 @@ export const unFriend = async (req, res) => {
         const { friendId } = req.body; // Front-end truyền ID của người cần hủy kết bạn lên
 
         if (!friendId) {
-        return res.status(400).json({ message: "Thiếu ID người bạn cần hủy kết bạn" });
+            return res.status(400).json({ message: "Thiếu ID người bạn cần hủy kết bạn" });
         }
 
         // Tìm bản ghi kết bạn đã "accepted" giữa 2 người này (không quan trọng ai gửi trước)
         const request = await FriendRequest.findOne({
-        status: "accepted",
-        $or: [
-            { from: user._id, to: friendId },
-            { from: friendId, to: user._id }
-        ]
+            status: "accepted",
+            $or: [
+                { from: user._id, to: friendId },
+                { from: friendId, to: user._id }
+            ]
         });
 
         if (!request) {
-        return res.status(404).json({ message: "Không tìm thấy mối quan hệ bạn bè hợp lệ" });
+            return res.status(404).json({ message: "Không tìm thấy mối quan hệ bạn bè hợp lệ" });
         }
 
         // Thực hiện xóa mối quan hệ kết bạn khỏi Database
         await request.deleteOne();
 
         // Xác định ai là người bị hủy để bắn Socket thông báo Realtime
-        const targetId = request.from.toString() === user._id.toString() 
-        ? request.to.toString() 
-        : request.from.toString();
+        const targetId = request.from.toString() === user._id.toString()
+            ? request.to.toString()
+            : request.from.toString();
 
         // Save notification to DB
         await Notification.create({
@@ -420,10 +420,10 @@ export const unFriend = async (req, res) => {
 
         const socketId = onlineUsers.get(targetId);
         if (socketId) {
-        io.to(socketId).emit("unfriend_notification", {
-            unfriendedBy: user._id,
-            message: `${user.fullname} đã hủy kết bạn với bạn`
-        });
+            io.to(socketId).emit("unfriend_notification", {
+                unfriendedBy: user._id,
+                message: `${user.fullname} đã hủy kết bạn với bạn`
+            });
         }
 
         res.status(200).json({ message: "Đã hủy kết bạn thành công" });
@@ -441,7 +441,7 @@ export const getProfileUser = async (req, res) => {
             return res.status(400).json({ message: "Thiếu thông tin ID" });
         }
         const user = await User.findById(userId);
-        if(!user){
+        if (!user) {
             return res.status(404).json({
                 message: "User khong ton tai"
             })
