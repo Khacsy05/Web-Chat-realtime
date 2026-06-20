@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Pencil, ArrowLeft, MoreHorizontal, Settings, LogOut, ArrowRight, Camera, X } from 'lucide-react';
 import conversation from '@/service/conversation';
+import messageService from '@/service/message';
 import useChatStore from '@/stores/useChatStore';
 import useAuthStore from '@/stores/useAuthStore';
 import ImageViewer from '@/components/ImageViewer';
@@ -27,15 +28,28 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
         description: "",
         onConfirm: () => { },
     });
+    const [mediaItems, setMediaItems] = useState([]);
+
+    useEffect(() => {
+        if (!initialData?._id) return;
+        const fetchArchive = async () => {
+            try {
+                const res = await messageService.getMediaArchive(initialData._id);
+                // Filter only image type messages and limit to top 4 items for the preview grid
+                const filtered = (res.data || [])
+                    .filter(item => item.type === 'image' && !item.isDeleted)
+                    .slice(0, 4);
+                setMediaItems(filtered);
+            } catch (error) {
+                console.error("Lỗi khi tải kho lưu trữ:", error);
+            }
+        };
+        fetchArchive();
+    }, [initialData?._id]);
+
     const members = initialData?.members || [];
     const displayedMembers = members.slice(0, 3);
     const totalMembers = initialData?.memberCount || members.length;
-
-    const mediaItems = [
-        { id: 1, type: 'image', url: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=150&auto=format&fit=crop&q=60' },
-        { id: 2, type: 'image', url: 'https://images.unsplash.com/photo-1581291518655-9523c932dedf?w=150&auto=format&fit=crop&q=60' },
-        { id: 3, type: 'image', url: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=150&auto=format&fit=crop&q=60' },
-    ];
 
     const handleUpload = async (file) => {
         if (!file) return;
@@ -209,16 +223,21 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                 {/* Media Section */}
                 <div className="py-4 border-b border-gray-100">
                     <h3 className="text-[13.5px] font-medium text-gray-800 mb-2.5">Ảnh/Video</h3>
-                    <div className="grid grid-cols-4 gap-2">
-                        {mediaItems.map((item) => (
-                            <div key={item.id} className="aspect-square rounded overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer hover:opacity-90">
-                                <img src={item.url} alt="Media" className="h-full w-full object-cover" />
-                            </div>
-                        ))}
-                        <button className="flex aspect-square items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                            <ArrowRight size={18} />
-                        </button>
-                    </div>
+                    {mediaItems.length === 0 ? (
+                        <div className="text-xs text-gray-400 italic py-2">Chưa có ảnh/video nào được chia sẻ</div>
+                    ) : (
+                        <div className="grid grid-cols-4 gap-2">
+                            {mediaItems.map((item) => (
+                                <div 
+                                    key={item._id} 
+                                    className="aspect-square rounded overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer hover:opacity-90"
+                                    onClick={() => setViewer(`${API_BASE_URL}${item.image}`)}
+                                >
+                                    <img src={`${API_BASE_URL}${item.image}`} alt="Media" className="h-full w-full object-cover" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Action Options */}
