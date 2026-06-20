@@ -158,7 +158,20 @@ const useFriendStore = create((set, get) => ({
       console.error(error);
       return { success: false, error };
     }
-  }
+  },
+
+  clearFriends: () => set({
+    friends: [],
+    totalFriends: 0,
+    loading: false,
+    hasMore: true,
+    cursor: null,
+    sentRequests: [],
+    receivedRequests: [],
+    loadingRequests: false,
+    allUsers: [],
+    loadingUsers: false,
+  })
 }));
 
 export default useFriendStore;

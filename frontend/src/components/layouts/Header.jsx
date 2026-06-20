@@ -4,12 +4,30 @@ import useAuthStore from "@/stores/useAuthStore";
 import Profile from "@/pages/user/profile/profile";
 import ChangePasswordModal from "@/pages/user/profile/ChangePasswordModal";
 import Modal from "../Modal";
+import useMessStore from "@/stores/useMessStore";
+import useChatStore from "@/stores/useChatStore";
+import useFriendStore from "@/stores/useFriendStore";
+import socket from "@/lib/socket";
 export function Header({ onNavigate }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const clearMessages = useMessStore((s) => s.clearMessages);
+  const setConversations = useChatStore((s) => s.setConversations);
+  const clearFriends = useFriendStore((s) => s.clearFriends);
+
+  const handleLogout = () => {
+    clearAuth();
+    clearMessages();
+    setConversations([]);
+    clearFriends();
+    socket.disconnect();
+    setDropOpen(false);
+    navigate("/login");
+  };
   const [avatarError, setAvatarError] = useState(false);
   const name = user?.displayName || user?.fullname || user?.username || "Nguoi dung";
   const avatarLetter = name.charAt(0).toUpperCase();
@@ -96,7 +114,7 @@ export function Header({ onNavigate }) {
                   </button>
                   <div className="border-t border-gray-100" />
                   <button className="w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-500"
-                    onClick={() => navigate("/login")}>Đăng xuất</button>
+                    onClick={handleLogout}>Đăng xuất</button>
                 </div>
               )}
             </div>
