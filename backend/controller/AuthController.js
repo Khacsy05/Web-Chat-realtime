@@ -242,3 +242,33 @@ export const updateProfile = async (req, res) => {
     res.status(500).json(err.message);
   }
 };
+
+export const changePassword = async (req, res) => {
+  try {
+    const authId = req.user._id;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ message: "Vui lòng nhập mật khẩu cũ và mới" });
+    }
+
+    const authUser = await Auth.findById(authId);
+    if (!authUser) {
+      return res.status(404).json({ message: "Tài khoản không tồn tại" });
+    }
+
+    if (authUser.password !== oldPassword) {
+      return res.status(400).json({ message: "Mật khẩu cũ không chính xác" });
+    }
+
+    authUser.password = newPassword;
+    await authUser.save();
+
+    return res.status(200).json({ message: "Đổi mật khẩu thành công" });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Lỗi server",
+      error: error.message
+    });
+  }
+};

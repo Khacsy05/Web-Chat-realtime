@@ -4,7 +4,7 @@ import { Camera } from "lucide-react";
 import { useState } from "react";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const ViewProfile = ({ onEdit, profile, onAvatarChange }) => {
-  const displayName = profile?.fullname || "Nguoi dung";
+  const displayName = profile?.fullname || "Người dùng";
   const avatarSrc = `${API_BASE_URL}${profile?.avatar || "/uploads/default-avatar.png"}`;
   const [viewer, setViewer] = useState(null);
   return (
@@ -31,25 +31,25 @@ const ViewProfile = ({ onEdit, profile, onAvatarChange }) => {
         <div className="text-xl font-semibold text-gray-800">{displayName}</div>
 
         <div className="w-full mt-2">
-          <div className="text-sm font-semibold text-gray-600 mb-2">Thong tin ca nhan</div>
+          <div className="text-sm font-semibold text-gray-600 mb-2">Thông tin cá nhân</div>
 
           <div className="bg-gray-50 rounded-xl p-4 space-y-3 text-sm">
-            <InfoRow label="Gioi tinh" value={profile?.gender || "Chua cap nhat"} />
+            <InfoRow label="Giới tính" value={profile?.gender || "Chưa cập nhật"} />
             <InfoRow
-              label="Ngay sinh"
+              label="Ngày sinh"
               value={
                 profile?.dateOfBirth
                   ? new Date(profile.dateOfBirth).toLocaleDateString("vi-VN")
-                  : "Chua cap nhat"
+                  : "Chưa cập nhật"
               }
             />
-            <InfoRow label="Dia chi" value={profile?.address || "Chua cap nhat"} />
+            <InfoRow label="Địa chỉ" value={profile?.address || "Chưa cập nhật"} />
           </div>
         </div>
 
         <div>
           <Button onClick={onEdit} className="bg-white text-black px-42 hover:bg-[#f8f9fa]">
-            Sua chi tiet
+            Sửa chi tiết
           </Button>
         </div>
       </div>

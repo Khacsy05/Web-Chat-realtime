@@ -9,12 +9,25 @@ export function AppLayout() {
   const currentUser = useAuthStore((state) => state.user);
 
   useEffect(() => {
-    if (currentUser?.idUser) {
-      if (!socket.connected) {
-        socket.connect();
-      }
-      socket.emit("join", String(currentUser.idUser));
+    if (!currentUser?.idUser) return;
+
+    if (!socket.connected) {
+      socket.connect();
     }
+
+    const handleConnect = () => {
+      socket.emit("join", String(currentUser.idUser));
+    };
+
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    socket.on("connect", handleConnect);
+
+    return () => {
+      socket.off("connect", handleConnect);
+    };
   }, [currentUser?.idUser]);
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">

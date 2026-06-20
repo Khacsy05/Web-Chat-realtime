@@ -61,6 +61,14 @@ const auth = {
             throw error.response || { message: "Lỗi cap nhap thong tin" };
         }
     },
+    changePassword: async (data) => {
+        try {
+            const response = await api.put("/auth/changePassword", data);
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Lỗi đổi mật khẩu" };
+        }
+    },
 }
 export default auth
 

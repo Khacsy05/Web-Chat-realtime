@@ -133,27 +133,6 @@ const AddFriend = () => {
               />
             </div>
 
-            <button
-              type="button"
-              className="hover:bg-[#f8f9fa] col-span-6 md:col-span-3 h-10 rounded-md border bg-white px-3 text-left text-sm text-[#1f2328] flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <ArrowUpDown size={16} />
-                Tên (A-Z)
-              </span>
-              <ChevronDown size={16} />
-            </button>
-
-            <button
-              type="button"
-              className="hover:bg-[#f8f9fa] col-span-6 md:col-span-3 h-10 rounded-md border bg-white px-3 text-left text-sm text-[#1f2328] flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <Funnel size={16} />
-                Tất cả
-              </span>
-              <ChevronDown size={16} />
-            </button>
           </div>
 
           {/* VÒNG LẶP RENDER NGƯỜI DÙNG */}

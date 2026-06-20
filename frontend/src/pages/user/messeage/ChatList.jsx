@@ -214,23 +214,7 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
             </span>
           </div>
 
-          <div className="flex items-center gap-3 pb-2">
-            <span
-              onClick={() => setActiveAction(activeAction === 'filter' ? null : 'filter')}
-              className={`flex cursor-pointer items-center gap-1 rounded-[20px] px-2 py-0.5 text-xs transition
-                ${activeAction === 'filter' ? 'bg-[#E8EDFF] text-[#3B5BDB]' : 'hover:bg-muted'}`}
-            >
-              Phân loại
-              <ChevronDown size={14} />
-            </span>
-            <span
-              onClick={() => setActiveAction(activeAction === 'more' ? null : 'more')}
-              className={`cursor-pointer rounded-[20px] p-1 transition
-                ${activeAction === 'more' ? 'bg-[#E8EDFF] text-[#3B5BDB]' : 'hover:bg-muted'}`}
-            >
-              <MoreHorizontal size={18} />
-            </span>
-          </div>
+
         </div>
       </div>
 

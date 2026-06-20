@@ -102,7 +102,7 @@ const AllFriend = () => {
             </button>
           )}
           <Users size={20} />
-          Danh sach ban be
+          Danh sách bạn bè
         </div>
       </div>
 
@@ -118,32 +118,12 @@ const AllFriend = () => {
               <Input
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Tim ban"
+                placeholder="Tìm kiếm"
                 className="h-10 bg-white pl-9 hover:bg-[#f8f9fa]"
               />
             </div>
 
-            <button
-              type="button"
-              className="hover:bg-[#f8f9fa] col-span-6 md:col-span-3 h-10 rounded-md border bg-white px-3 text-left text-sm text-[#1f2328] flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <ArrowUpDown size={16} />
-                Ten (A-Z)
-              </span>
-              <ChevronDown size={16} />
-            </button>
 
-            <button
-              type="button"
-              className="hover:bg-[#f8f9fa] col-span-6 md:col-span-3 h-10 rounded-md border bg-white px-3 text-left text-sm text-[#1f2328] flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <Funnel size={16} />
-                Tat ca
-              </span>
-              <ChevronDown size={16} />
-            </button>
           </div>
 
           {filteredFriend.map((item) => (
@@ -217,7 +197,7 @@ const AllFriend = () => {
 
           {!loading && friends.length === 0 && (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-              Chua co ban be.
+              Chưa có bạn bè.
             </div>
           )}
         </div>

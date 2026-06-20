@@ -106,7 +106,7 @@ const EditProfile = ({ onBack, onSave, profile }) => {
 
       {/* Button */}
       <Button type="submit" className="bg-white text-black w-full hover:bg-[#f8f9fa]" onSave >
-        💾 Lưu thay đổi
+        Lưu thay đổi
       </Button>
     </form>
   );

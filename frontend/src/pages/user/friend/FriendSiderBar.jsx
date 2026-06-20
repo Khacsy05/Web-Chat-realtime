@@ -72,6 +72,7 @@ const FriendSiderBar = ({ onOpenContent }) => {
                             <NavLink
                                 key={item.path}
                                 to={item.path}
+                                onClick={() => onOpenContent?.()}
                                 className={({ isActive }) =>
                                     `flex items-center rounded-sm p-3 transition ${isActive
                                         ? "bg-[#E8EDFF] text-black "

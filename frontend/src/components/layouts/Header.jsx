@@ -1,11 +1,13 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthStore from "@/stores/useAuthStore";
 import Profile from "@/pages/user/profile/profile";
+import ChangePasswordModal from "@/pages/user/profile/ChangePasswordModal";
 import Modal from "../Modal";
 export function Header({ onNavigate }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [changePassOpen, setChangePassOpen] = useState(false);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const [avatarError, setAvatarError] = useState(false);
@@ -83,11 +85,18 @@ export function Header({ onNavigate }) {
                     onClick={() => { setProfileOpen(true); setDropOpen(false); }}
                     className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50"
                   >
-                    Thong tin ca nhan
+                    Thông tin cá nhân
+                  </button>
+                  <div className="border-t border-gray-100" />
+                  <button
+                    onClick={() => { setChangePassOpen(true); setDropOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50"
+                  >
+                    Đổi mật khẩu
                   </button>
                   <div className="border-t border-gray-100" />
                   <button className="w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-500"
-                    onClick={() => navigate("/login")}>Dang xuat</button>
+                    onClick={() => navigate("/login")}>Đăng xuất</button>
                 </div>
               )}
             </div>
@@ -103,6 +112,19 @@ export function Header({ onNavigate }) {
           size="md"
         >
           <Profile />
+        </Modal>
+      )}
+
+      {changePassOpen && (
+        <Modal
+          title="Đổi mật khẩu"
+          onClose={() => setChangePassOpen(false)}
+          size="md"
+        >
+          <ChangePasswordModal
+            onSuccess={() => setChangePassOpen(false)}
+            onCancel={() => setChangePassOpen(false)}
+          />
         </Modal>
       )}
 
