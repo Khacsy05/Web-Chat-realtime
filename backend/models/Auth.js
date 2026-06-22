@@ -1,4 +1,6 @@
 import mongoose from "mongoose"
+import bcrypt from "bcryptjs";
+
 const authSchema = mongoose.Schema({
     
     username : {
@@ -25,6 +27,15 @@ const authSchema = mongoose.Schema({
 },
 {
     timestamps : true
+});
+
+// Pre-save middleware to automatically hash password
+authSchema.pre("save", async function() {
+    if (!this.isModified("password")) {
+        return;
+    }
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
 });
 
 const Auth = mongoose.model("Auths",authSchema);

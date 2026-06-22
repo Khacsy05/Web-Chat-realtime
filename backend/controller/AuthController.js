@@ -2,23 +2,28 @@ import Auth from "../models/Auth.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken"
 import transporter from "../services/auth.service.js";
-export const login = async (req,res) => {
+import bcrypt from "bcryptjs";
+
+
+export const login = async (req, res) => {
     try {
         const username = req.body.username?.trim();
         const password = req.body.password;
-        if(!username || !password){
+        if (!username || !password) {
             return res.status(404).json({
                 message: "vui long nhap day du email va password"
             })
         }
-        const user = await Auth.findOne({username});
-        if(!user){
+        const user = await Auth.findOne({ username });
+        if (!user) {
             return res.status(404).json({
                 message: "Tai khoan khong ton tai"
             })
         }
         const isUser = await User.findOne({ userId: user._id });
-        if(password !== user.password){
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
             return res.status(404).json({
                 message: "Mat khau khong dung"
             })
@@ -27,13 +32,13 @@ export const login = async (req,res) => {
             {
                 _id: user._id,
                 email: user.email,
-                role: user.role, 
+                role: user.role,
             },
             process.env.JWT_SECRET || "SECRET_KEY",
-            { expiresIn: "1h" } 
+            { expiresIn: "1h" }
         )
         res.status(200).json({
-            message : "Dang nhap thanh cong",
+            message: "Dang nhap thanh cong",
             token,
             user: {
                 _id: user._id,
@@ -44,7 +49,7 @@ export const login = async (req,res) => {
                 avatar: isUser?.avatar || "/uploads/default-avatar.png",
                 idUser: isUser?._id
             }
-            
+
         })
     } catch (error) {
         return res.status(500).json({
@@ -55,10 +60,10 @@ export const login = async (req,res) => {
 
 }
 
-export const register = async (req,res) => {
+export const register = async (req, res) => {
     try {
-        const {username,email,password,role,fullname} = req.body;
-        if(!username || !email || !password){
+        const { username, email, password, role, fullname } = req.body;
+        if (!username || !email || !password) {
             return res.status(404).json({
                 message: "Vui lòng cung cấp đầy đủ thông tin"
             })
@@ -98,15 +103,15 @@ export const register = async (req,res) => {
 
 const otpStore = {};
 
-export const sendOtp = async (req,res) => {
+export const sendOtp = async (req, res) => {
     try {
         const email = req.body.email.trim().toLowerCase();
         const otp = Math.floor(100000 + Math.random() * 900000);
 
-        const findEmail = await Auth.findOne({email})
-        if(!findEmail) {
+        const findEmail = await Auth.findOne({ email })
+        if (!findEmail) {
             return res.status(404).json({
-                message : "Email khong ton tai"
+                message: "Email khong ton tai"
             })
         }
 
@@ -131,21 +136,21 @@ export const sendOtp = async (req,res) => {
     }
 }
 
-export const verifyOtp = async (req,res) => {
+export const verifyOtp = async (req, res) => {
     try {
-        const {email,otp} = req.body;
+        const { email, otp } = req.body;
 
-        
+
         const record = otpStore[email];
 
-        if(!record) {
+        if (!record) {
             return res.status(404).json({
-                message : "Chua gui otp"
+                message: "Chua gui otp"
             })
         }
-        if(record.used){
+        if (record.used) {
             return res.status(404).json({
-                message : "Otp da duoc dung"
+                message: "Otp da duoc dung"
             })
         }
         if (Date.now() > record.expire) {
@@ -173,9 +178,9 @@ export const verifyOtp = async (req,res) => {
     }
 }
 
-export const resetPass = async (req,res) => {
+export const resetPass = async (req, res) => {
     try {
-        const {token,newPassword} = req.body;
+        const { token, newPassword } = req.body;
         const decoded = jwt.verify(token, process.env.JWT_SECRET || "SECRET_KEY");
         const email = decoded.email;
 
@@ -186,11 +191,11 @@ export const resetPass = async (req,res) => {
         console.log("FOUND USER:", check);
 
         const user = await Auth.findOneAndUpdate(
-            {email},
-            {password: newPassword},
+            { email },
+            { password: newPassword },
             { returnDocument: 'after' }
         )
-        if(!user){
+        if (!user) {
             return res.status(404).json({
                 message: "User khong ton tai"
             })
@@ -200,15 +205,15 @@ export const resetPass = async (req,res) => {
         return res.status(500).json({
             message: "Lỗi server",
             error: error.message
-        });1
+        }); 1
     }
 }
 
-export const me = async(req,res) => {
+export const me = async (req, res) => {
     try {
         const authId = req.user._id; // lấy từ middleware JWT
         const user = await User.findOne({ userId: authId });
-        if(!user){
+        if (!user) {
             return res.status(404).json({
                 message: "User khong ton tai"
             })
@@ -221,54 +226,55 @@ export const me = async(req,res) => {
     }
 }
 export const updateProfile = async (req, res) => {
-  try {
-    const authId = req.user._id;
-    
-    const { fullname, dateOfBirth, address, gender } = req.body;
+    try {
+        const authId = req.user._id;
 
-    const updated = await User.findOneAndUpdate(
-      { userId: authId },
-      {
-        fullname,
-        dateOfBirth,
-        address,
-        gender,
-      },
-      { returnDocument: 'after' }
-    );
+        const { fullname, dateOfBirth, address, gender } = req.body;
 
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json(err.message);
-  }
+        const updated = await User.findOneAndUpdate(
+            { userId: authId },
+            {
+                fullname,
+                dateOfBirth,
+                address,
+                gender,
+            },
+            { returnDocument: 'after' }
+        );
+
+        res.json(updated);
+    } catch (err) {
+        res.status(500).json(err.message);
+    }
 };
 
 export const changePassword = async (req, res) => {
-  try {
-    const authId = req.user._id;
-    const { oldPassword, newPassword } = req.body;
+    try {
+        const authId = req.user._id;
+        const { oldPassword, newPassword } = req.body;
 
-    if (!oldPassword || !newPassword) {
-      return res.status(400).json({ message: "Vui lòng nhập mật khẩu cũ và mới" });
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ message: "Vui lòng nhập mật khẩu cũ và mới" });
+        }
+
+        const authUser = await Auth.findById(authId);
+        if (!authUser) {
+            return res.status(404).json({ message: "Tài khoản không tồn tại" });
+        }
+
+        const isMatch = await bcrypt.compare(oldPassword, authUser.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Mật khẩu cũ không chính xác" });
+        }
+
+        authUser.password = newPassword;
+        await authUser.save();
+
+        return res.status(200).json({ message: "Đổi mật khẩu thành công" });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Lỗi server",
+            error: error.message
+        });
     }
-
-    const authUser = await Auth.findById(authId);
-    if (!authUser) {
-      return res.status(404).json({ message: "Tài khoản không tồn tại" });
-    }
-
-    if (authUser.password !== oldPassword) {
-      return res.status(400).json({ message: "Mật khẩu cũ không chính xác" });
-    }
-
-    authUser.password = newPassword;
-    await authUser.save();
-
-    return res.status(200).json({ message: "Đổi mật khẩu thành công" });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Lỗi server",
-      error: error.message
-    });
-  }
 };

@@ -60,6 +60,11 @@ export const friendRequest = async (req, res) => {
         })
 
         const newRequest = await request.save();
+        
+        // Populate the from and to fields so that the frontend has user details immediately
+        const populatedRequest = await FriendRequest.findById(newRequest._id)
+            .populate("from", "fullname avatar isActive lastActive")
+            .populate("to", "fullname avatar isActive lastActive");
 
         // Save Notification to Database
         await Notification.create({
@@ -73,6 +78,7 @@ export const friendRequest = async (req, res) => {
         const socketId = onlineUsers.get(to.toString());
         if (socketId) {
             io.to(socketId).emit("friend_request", {
+                request: populatedRequest,
                 from: {
                     _id: user._id,
                     fullname: user.fullname,
@@ -82,7 +88,7 @@ export const friendRequest = async (req, res) => {
             });
         }
 
-        res.status(200).json(newRequest);
+        res.status(200).json(populatedRequest);
     } catch (error) {
         console.error("Loi khi goi friendRequest", error);
         res.status(500).json({ message: "Loi he thong" })
@@ -237,6 +243,7 @@ export const acceptRequest = async (req, res) => {
         const socketId = onlineUsers.get(request.from.toString());
         if (socketId) {
             io.to(socketId).emit("accept_friend", {
+                requestId: request._id,
                 from: {
                     _id: user._id,
                     fullname: user.fullname,
@@ -293,6 +300,7 @@ export const rejectRequest = async (req, res) => {
         const socketId = onlineUsers.get(fromUserId.toString());
         if (socketId) {
             io.to(socketId).emit("reject_friend", {
+                requestId: request._id,
                 from: {
                     _id: user._id,
                     fullname: user.fullname,
