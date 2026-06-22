@@ -5,12 +5,14 @@ import { Sidebar } from "./Sidebar";
 import useAuthStore from "@/stores/useAuthStore";
 import socket from "@/lib/socket";
 import useNotificationStore from "@/stores/useNotificationStore";
+import useFriendStore from "@/stores/useFriendStore";
 import { toast } from "sonner";
 
 export function AppLayout() {
   const currentUser = useAuthStore((state) => state.user);
   const initNotificationSocket = useNotificationStore((state) => state.initSocket);
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+  const initFriendSocket = useFriendStore((state) => state.initSocket);
 
   useEffect(() => {
     if (!currentUser?.idUser) return;
@@ -30,11 +32,12 @@ export function AppLayout() {
     socket.on("connect", handleConnect);
     fetchNotifications();
     initNotificationSocket();
+    initFriendSocket();
 
     return () => {
       socket.off("connect", handleConnect);
     };
-  }, [currentUser?.idUser, initNotificationSocket, fetchNotifications]);
+  }, [currentUser?.idUser, initNotificationSocket, fetchNotifications, initFriendSocket]);
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
       <Header />

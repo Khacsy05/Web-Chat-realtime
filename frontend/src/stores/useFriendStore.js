@@ -98,11 +98,11 @@ const useFriendStore = create((set, get) => ({
   sendFriendRequest: async (idFriend) => {
     try {
       const response = await user.friendRequest(idFriend);
-      const requestId = response.data._id;
+      const requestData = response.data; // This is now fully populated from backend!
       set((state) => ({
-        sentRequests: [...state.sentRequests, { _id: requestId, to: { _id: idFriend } }]
+        sentRequests: [...state.sentRequests, requestData]
       }));
-      return { success: true, data: response.data };
+      return { success: true, data: requestData };
     } catch (error) {
       console.error(error);
       return { success: false, error };
@@ -131,7 +131,7 @@ const useFriendStore = create((set, get) => ({
         // Find friend details from request to add to friends list
         const request = state.receivedRequests.find(req => req._id === idRequest);
         const newFriend = request?.from;
-        
+
         return {
           receivedRequests: state.receivedRequests.filter((req) => req._id !== idRequest),
           friends: newFriend && !state.friends.some(f => f._id === newFriend._id)
@@ -160,6 +160,79 @@ const useFriendStore = create((set, get) => ({
     }
   },
 
+  initSocket: () => {
+    const store = get();
+
+    // Remove old listeners to avoid duplicate trigger
+    socket.off("friend_request", store.handleReceiveFriendRequest);
+    socket.off("cancel_friend", store.handleReceiveCancelRequest);
+    socket.off("accept_friend", store.handleReceiveAcceptRequest);
+    socket.off("reject_friend", store.handleReceiveRejectRequest);
+    socket.off("unfriend_notification", store.handleReceiveUnfriend);
+
+    // Define socket event handlers
+    store.handleReceiveFriendRequest = (data) => {
+      // Add new request to receivedRequests list in real-time
+      if (data.request) {
+        set((state) => {
+          const exists = state.receivedRequests.some((r) => r._id === data.request._id);
+          if (exists) return state;
+          return {
+            receivedRequests: [data.request, ...state.receivedRequests],
+          };
+        });
+      }
+    };
+
+    store.handleReceiveCancelRequest = (data) => {
+      // Remove request from receivedRequests list in real-time when sender cancels it
+      set((state) => ({
+        receivedRequests: state.receivedRequests.filter(
+          (req) => req.from?._id !== data.fromId
+        ),
+      }));
+    };
+
+    store.handleReceiveAcceptRequest = (data) => {
+      // Move request from sentRequests to friends list in real-time
+      set((state) => {
+        const acceptedReq = state.sentRequests.find((req) => req._id === data.requestId);
+        // data.from has _id, fullname, avatar
+        const newFriend = data.from;
+
+        return {
+          sentRequests: state.sentRequests.filter((req) => req._id !== data.requestId),
+          friends: newFriend && !state.friends.some((f) => f._id === newFriend._id)
+            ? [newFriend, ...state.friends]
+            : state.friends,
+          totalFriends: state.totalFriends + (newFriend && !state.friends.some((f) => f._id === newFriend._id) ? 1 : 0),
+        };
+      });
+    };
+
+    store.handleReceiveRejectRequest = (data) => {
+      // Remove request from sentRequests list in real-time when recipient rejects it
+      set((state) => ({
+        sentRequests: state.sentRequests.filter((req) => req._id !== data.requestId),
+      }));
+    };
+
+    store.handleReceiveUnfriend = (data) => {
+      // Remove friend from friends list in real-time when unfriended
+      set((state) => ({
+        friends: state.friends.filter((f) => f._id !== data.unfriendedBy),
+        totalFriends: Math.max(0, state.totalFriends - 1),
+      }));
+    };
+
+    // Attach listeners
+    socket.on("friend_request", store.handleReceiveFriendRequest);
+    socket.on("cancel_friend", store.handleReceiveCancelRequest);
+    socket.on("accept_friend", store.handleReceiveAcceptRequest);
+    socket.on("reject_friend", store.handleReceiveRejectRequest);
+    socket.on("unfriend_notification", store.handleReceiveUnfriend);
+  },
+
   clearFriends: () => set({
     friends: [],
     totalFriends: 0,
@@ -173,5 +246,7 @@ const useFriendStore = create((set, get) => ({
     loadingUsers: false,
   })
 }));
+
+import socket from "@/lib/socket";
 
 export default useFriendStore;
