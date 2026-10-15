@@ -10,6 +10,7 @@ import useFriendStore from "@/stores/useFriendStore";
 import useNotificationStore from "@/stores/useNotificationStore";
 import socket from "@/lib/socket";
 import { X } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 export function Header({ onNavigate }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -41,9 +42,7 @@ export function Header({ onNavigate }) {
   const name = user?.displayName || user?.fullname || user?.username || "Nguoi dung";
   const avatarLetter = name.charAt(0).toUpperCase();
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-  const avatarSrc = user?.avatar
-    ? (user.avatar.startsWith("http") ? user.avatar : `${API_BASE_URL}${user.avatar}`)
-    : `${API_BASE_URL}/uploads/default-avatar.png`;
+  const avatarSrc = getImageUrl(user?.avatar);
   useEffect(() => {
     const handleGlobalClick = () => {
       if (dropOpen) {
@@ -122,7 +121,7 @@ export function Header({ onNavigate }) {
                         <div key={n.id} className="p-3 flex items-start gap-2.5 hover:bg-gray-50/50 transition-colors group">
                           {n.avatar ? (
                             <img 
-                              src={`${API_BASE_URL}${n.avatar}`} 
+                              src={getImageUrl(n.avatar)} 
                               alt="avatar" 
                               className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 border"
                             />

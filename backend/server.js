@@ -11,13 +11,25 @@ import routerMessage from './Router/routerMessage.js';
 import routerNotification from './Router/routerNotification.js';
 import cors from "cors";
 import User from './models/User.js';
+import cookieParser from "cookie-parser"; // 👈 Add cookie-parser
+
 dotenv.config();
+
+// Ngăn ngừa crash server khi mạng bị chập chờn hoặc socket/MongoDB bị ECONNRESET
+process.on("unhandledRejection", (reason) => {
+  console.warn("⚠️ Bỏ qua unhandledRejection để không sập server:", reason?.message || reason);
+});
+process.on("uncaughtException", (err) => {
+  console.warn("⚠️ Bỏ qua uncaughtException để không sập server:", err?.message || err);
+});
+
 const app = express();
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true
 }));
 
+app.use(cookieParser()); // 👈 Add cookie-parser middleware
 app.use(express.json());
 app.use("/api/auth", routerAuth);
 app.use("/api/user", routerUser);
@@ -148,5 +160,4 @@ io.on("connection", (socket) => {
   }
 })();
 
-
-export { io };
+export { io };

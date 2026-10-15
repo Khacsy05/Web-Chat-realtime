@@ -1,6 +1,7 @@
 import React from 'react';
 import useAuthStore from '@/stores/useAuthStore';
 import { UsersRound } from 'lucide-react';
+import { getImageUrl } from '@/lib/utils';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConversation }) => {
   const currentUser = useAuthStore((state) => state.user);
@@ -20,9 +21,7 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
           : (otherMember?.fullname || 'Người dùng');
 
         // 3. Logic hiển thị Ảnh đại diện (Avatar)
-        const displayAvatar = otherMember?.avatar
-          ? `${API_BASE_URL}${otherMember.avatar}`
-          : `${API_BASE_URL}/uploads/default-avatar.png`;
+        const displayAvatar = getImageUrl(otherMember?.avatar);
         const members = conversation?.members || [];
         const totalMembers = members.length;
         // 4. Xử lý tin nhắn cuối
@@ -47,9 +46,15 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
         const myReadStatus = conversation.membersReadStatus?.find(
           (status) => String(status.userId) === String(currentUser?.idUser)
         );
-        const isUnread = conversation.lastMessage &&
+        const isUnread = Boolean(
+          conversation.lastMessage &&
           String(conversation.lastSenderId) !== String(currentUser?.idUser) &&
-          (!myReadStatus || new Date(myReadStatus.seenAt).getTime() < new Date(conversation.updatedAt).getTime() - 1000);
+          (!myReadStatus || (
+            conversation.lastMessageId && myReadStatus.lastSeenMessageId
+              ? String(myReadStatus.lastSeenMessageId) !== String(conversation.lastMessageId)
+              : new Date(myReadStatus.seenAt).getTime() < new Date(conversation.lastMessageAt || conversation.updatedAt).getTime()
+          ))
+        );
 
         return (
           <div
@@ -70,7 +75,7 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
                 {isGroup ? (
                   conversation?.avatar ? (
                     <img
-                      src={`${API_BASE_URL}${conversation?.avatar}`}
+                      src={getImageUrl(conversation?.avatar)}
                       alt={displayName}
                       className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
                     />
@@ -79,19 +84,19 @@ const UserCardChat = ({ userCardChat = [], selectedConversation, onSelectConvers
                       <div className="relative size-full">
                         {/* Ảnh thành viên 1 */}
                         <img
-                          src={`${API_BASE_URL}${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                          src={getImageUrl(members[0]?.avatar)}
                           className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20"
                           alt="mem1"
                         />
                         {/* Ảnh thành viên 2 */}
                         <img
-                          src={`${API_BASE_URL}${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                          src={getImageUrl(members[1]?.avatar)}
                           className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10"
                           alt="mem2"
                         />
                         {/* Ảnh thành viên 3 */}
                         <img
-                          src={`${API_BASE_URL}${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                          src={getImageUrl(members[2]?.avatar)}
                           className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30"
                           alt="mem3"
                         />

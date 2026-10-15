@@ -7,27 +7,60 @@ import bcrypt from "bcryptjs";
 
 export const login = async (req, res) => {
     try {
-        const username = req.body.username?.trim();
+        const identifier = (req.body.username || req.body.email)?.trim();
         const password = req.body.password;
-        if (!username || !password) {
-            return res.status(404).json({
-                message: "vui long nhap day du email va password"
-            })
+        if (!identifier || !password) {
+            return res.status(400).json({
+                message: "Vui lòng nhập đầy đủ tên đăng nhập/email và mật khẩu"
+            });
         }
-        const user = await Auth.findOne({ username });
-        if (!user) {
-            return res.status(404).json({
-                message: "Tai khoan khong ton tai"
-            })
-        }
-        const isUser = await User.findOne({ userId: user._id });
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
+        // Tìm tất cả tài khoản khớp với username hoặc email (hỗ trợ trường hợp DB bị trùng username)
+        const candidates = await Auth.find({
+            $or: [
+                { username: identifier },
+                { email: identifier.toLowerCase() }
+            ]
+        });
+
+        if (!candidates || candidates.length === 0) {
             return res.status(404).json({
-                message: "Mat khau khong dung"
-            })
+                message: "Tài khoản không tồn tại"
+            });
         }
+
+        // Lặp kiểm tra tài khoản nào khớp mật khẩu
+        let user = null;
+        for (const candidate of candidates) {
+            let isMatch = false;
+            try {
+                isMatch = await bcrypt.compare(password, candidate.password);
+            } catch (err) {
+                isMatch = false;
+            }
+
+            // Hỗ trợ nếu mật khẩu trong DB từng bị lưu plaintext
+            if (!isMatch && password === candidate.password) {
+                isMatch = true;
+                candidate.password = password;
+                await candidate.save();
+            }
+
+            if (isMatch) {
+                user = candidate;
+                break;
+            }
+        }
+
+        if (!user) {
+            return res.status(400).json({
+                message: "Mật khẩu không đúng"
+            });
+        }
+
+        const isUser = await User.findOne({ userId: user._id });
+        
+        // 1. Tạo Access Token (Ngắn hạn - 15 phút)
         const token = jwt.sign(
             {
                 _id: user._id,
@@ -35,11 +68,29 @@ export const login = async (req, res) => {
                 role: user.role,
             },
             process.env.JWT_SECRET || "SECRET_KEY",
-            { expiresIn: "1h" }
+            { expiresIn: "15m" }
         )
+
+        // 2. Tạo Refresh Token (Dài hạn - 7 ngày)
+        const refreshToken = jwt.sign(
+            {
+                _id: user._id,
+            },
+            process.env.JWT_REFRESH_SECRET || "REFRESH_SECRET_KEY",
+            { expiresIn: "7d" }
+        )
+
+        // 3. Thiết lập Refresh Token Cookie
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production", // Chỉ HTTPS khi production
+            sameSite: "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 ngày
+        });
+
         res.status(200).json({
             message: "Dang nhap thanh cong",
-            token,
+            token, // Đây chính là Access Token
             user: {
                 _id: user._id,
                 username: user.username,
@@ -68,10 +119,16 @@ export const register = async (req, res) => {
                 message: "Vui lòng cung cấp đầy đủ thông tin"
             })
         }
-        const exist = await Auth.findOne({ email });
-        if (exist) {
+        const existEmail = await Auth.findOne({ email });
+        if (existEmail) {
             return res.status(409).json({
                 message: "Email đã tồn tại"
+            });
+        }
+        const existUsername = await Auth.findOne({ username });
+        if (existUsername) {
+            return res.status(409).json({
+                message: "Tên đăng nhập đã tồn tại, vui lòng chọn tên khác"
             });
         }
         const auth = new Auth({
@@ -190,17 +247,15 @@ export const resetPass = async (req, res) => {
         const check = await Auth.findOne({ email: decoded.email });
         console.log("FOUND USER:", check);
 
-        const user = await Auth.findOneAndUpdate(
-            { email },
-            { password: newPassword },
-            { returnDocument: 'after' }
-        )
+        const user = await Auth.findOne({ email });
         if (!user) {
             return res.status(404).json({
                 message: "User khong ton tai"
-            })
+            });
         }
-        res.status(200).json(user)
+        user.password = newPassword;
+        await user.save();
+        res.status(200).json({ message: "Đặt lại mật khẩu thành công" });
     } catch (error) {
         return res.status(500).json({
             message: "Lỗi server",
@@ -271,6 +326,72 @@ export const changePassword = async (req, res) => {
         await authUser.save();
 
         return res.status(200).json({ message: "Đổi mật khẩu thành công" });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Lỗi server",
+            error: error.message
+        });
+    }
+};
+
+export const refresh = async (req, res) => {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+        if (!refreshToken) {
+            return res.status(401).json({ message: "Không tìm thấy Refresh Token" });
+        }
+
+        jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || "REFRESH_SECRET_KEY", async (err, decoded) => {
+            if (err) {
+                return res.status(403).json({ message: "Refresh Token không hợp lệ hoặc đã hết hạn" });
+            }
+
+            const user = await Auth.findById(decoded._id);
+            if (!user) {
+                return res.status(404).json({ message: "Tài khoản không tồn tại" });
+            }
+
+            const isUser = await User.findOne({ userId: user._id });
+
+            const token = jwt.sign(
+                {
+                    _id: user._id,
+                    email: user.email,
+                    role: user.role,
+                },
+                process.env.JWT_SECRET || "SECRET_KEY",
+                { expiresIn: "15m" }
+            );
+
+            return res.status(200).json({
+                token, // Access Token mới
+                user: {
+                    _id: user._id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role,
+                    fullname: isUser?.fullname || null,
+                    avatar: isUser?.avatar || "/uploads/default-avatar.png",
+                    idUser: isUser?._id
+                }
+            });
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Lỗi server",
+            error: error.message
+        });
+    }
+};
+
+export const logout = async (req, res) => {
+    try {
+        res.clearCookie("refreshToken", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax"
+        });
+        return res.status(200).json({ message: "Đăng xuất thành công" });
     } catch (error) {
         return res.status(500).json({
             message: "Lỗi server",

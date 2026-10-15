@@ -4,6 +4,7 @@ import Notification from "../models/Notification.js";
 import { io } from "../server.js";
 import { onlineUsers } from "../config/socketStore.js";
 import mongoose from "mongoose";
+import { uploadToCloudinary } from "../config/cloudinary.js";
 
 
 export const friendRequest = async (req, res) => {
@@ -373,7 +374,13 @@ export const updateAvatar = async (req, res) => {
     try {
         const authId = req.user._id;
 
-        const avatarUrl = `/uploads/${req.file.filename}`;
+        if (!req.file) {
+            return res.status(400).json({ message: "Vui lòng chọn ảnh đại diện" });
+        }
+
+        // Upload trực tiếp lên Cloudinary
+        const result = await uploadToCloudinary(req.file.buffer, "avatars");
+        const avatarUrl = result.secure_url;
 
         const updated = await User.findOneAndUpdate(
             { userId: authId },
@@ -383,7 +390,8 @@ export const updateAvatar = async (req, res) => {
 
         res.json(updated);
     } catch (err) {
-        res.status(500).json(err.message);
+        console.error("Lỗi upload avatar:", err);
+        res.status(500).json({ message: err.message || "Lỗi upload ảnh" });
     }
 };
 

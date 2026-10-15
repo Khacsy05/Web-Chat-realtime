@@ -6,6 +6,7 @@ import { AlertTriangle, X, User, UserCheck, Mail, ChevronDown, ChevronUp } from 
 import Modal from '@/components/Modal';
 import ProfileFriend from '../profile/ProfileFriend';
 import useFriendStore from '@/stores/useFriendStore';
+import { getImageUrl } from '@/lib/utils';
 
 const PendingRequest = () => {
   const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};
@@ -137,7 +138,7 @@ const PendingRequest = () => {
                       <div className="flex items-start gap-3">
                         <button onClick={() => setOpenProfile(sender)}>
                           <img
-                            src={`${API_BASE_URL}${sender.avatar || '/uploads/default-avatar.png'}`}
+                            src={getImageUrl(sender.avatar)}
                             onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
                             alt={sender.fullname}
                             className="size-14 rounded-full object-cover border border-gray-100"
@@ -213,7 +214,7 @@ const PendingRequest = () => {
                       <div className="flex items-start gap-3">
                         <button onClick={() => setOpenProfile(receiver)}>
                           <img
-                            src={`${API_BASE_URL}${receiver.avatar || '/uploads/default-avatar.png'}`}
+                            src={getImageUrl(receiver.avatar)}
                             onError={(e) => { e.target.src = 'https://gwb-assets.s3.amazonaws.com/default-avatar.png' }}
                             alt={receiver.fullname}
                             className="size-14 rounded-full object-cover border border-gray-100"

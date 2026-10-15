@@ -114,6 +114,8 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
         ...next[i],
         lastMessage: lastMessageEvent.content,
         lastSenderId: lastMessageEvent.type === 'system' ? null : lastMessageEvent.senderId,
+        lastMessageId: lastMessageEvent.messageId || null,
+        lastMessageAt: lastMessageEvent.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       next.splice(i, 1);
@@ -129,9 +131,15 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
       const myStatus = item.membersReadStatus?.find(
         (status) => String(status.userId) === String(currentUser?.idUser)
       );
-      const isUnread = item.lastMessage &&
+      const isUnread = Boolean(
+        item.lastMessage &&
         String(item.lastSenderId) !== String(currentUser?.idUser) &&
-        (!myStatus || new Date(myStatus.seenAt).getTime() < new Date(item.updatedAt).getTime() - 1000);
+        (!myStatus || (
+          item.lastMessageId && myStatus.lastSeenMessageId
+            ? String(myStatus.lastSeenMessageId) !== String(item.lastMessageId)
+            : new Date(myStatus.seenAt).getTime() < new Date(item.lastMessageAt || item.updatedAt).getTime()
+        ))
+      );
       if (!isUnread) return false;
     }
 

@@ -36,9 +36,9 @@ const HomePage = () => {
   };
 
   return (
-    <div className="relative flex h-full overflow-hidden">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden">
       <aside
-        className={`flex w-full flex-col border-r bg-white md:w-[340px] ${
+        className={`flex w-full flex-col border-r bg-white md:w-[340px] shrink-0 ${
           mobileShowChat ? "hidden md:flex" : "flex"
         }`}
       >
@@ -51,7 +51,7 @@ const HomePage = () => {
 
       {selectedConversation ? (
         <div
-          className={`flex flex-1 flex-col min-w-0 w-full ${
+          className={`flex flex-1 h-full min-h-0 min-w-0 flex-col w-full overflow-hidden ${
             !mobileShowChat ? "hidden md:flex" : "flex"
           }`}
         >
