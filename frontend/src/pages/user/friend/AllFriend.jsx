@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import ProfileFriend from '../profile/ProfileFriend';
 import Modal from '@/components/Modal';
 import useFriendStore from '@/stores/useFriendStore';
+import { getImageUrl } from '@/lib/utils';
 
 const AllFriend = () => {
   const navigate = useNavigate();
@@ -133,7 +134,7 @@ const AllFriend = () => {
               onClick={() => navigate(`/user/friend/chat/${item._id}`)}
             >
               <img
-                src={`${API_BASE_URL}${item?.avatar || '/uploads/default-avatar.png'}`}
+                src={getImageUrl(item?.avatar)}
                 alt={item?.fullname || 'Friend avatar'}
                 className="size-11 rounded-full object-cover"
               />

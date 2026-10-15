@@ -5,6 +5,7 @@ import Message from "../models/Message.js";
 import Notification from "../models/Notification.js";
 import { io } from "../server.js";
 import { onlineUsers } from "../config/socketStore.js";
+import { uploadToCloudinary } from "../config/cloudinary.js";
 
 
 const buildParticipantKey = (idA, idB) =>
@@ -89,7 +90,8 @@ export const createGroupConversation = async (req, res) => {
     }
     let avatarUrl = null;
     if (req.file) {
-      avatarUrl = `/uploads/${req.file.filename}`;
+      const result = await uploadToCloudinary(req.file.buffer, "group_avatars");
+      avatarUrl = result.secure_url;
     }
     const groupData = await Conversation.create({
       adminGroup: user._id,
@@ -134,7 +136,7 @@ export const getUserConversations = async (req, res) => {
     };
 
     if (after) {
-      query.updatedAt = { $lt: after };
+      query.lastMessageAt = { $lt: after };
     }
 
     // 🔥 XỬ LÝ LOGIC TÌM KIẾM TẠI ĐÂY
@@ -159,14 +161,14 @@ export const getUserConversations = async (req, res) => {
       ];
     }
 
-    // Thực hiện truy vấn dữ liệu từ DB
+    // Thực hiện truy vấn dữ liệu từ DB: Sắp xếp cố định theo thời điểm tin nhắn cuối cùng (lastMessageAt)
     const conversations = await Conversation.find(query)
       .populate("members", "fullname avatar isActive lastActive")
-      .sort({ updatedAt: -1 })
+      .sort({ lastMessageAt: -1 })
       .limit(limit + 1);
 
     const nextCursor = conversations.length
-      ? conversations[conversations.length - 1].updatedAt
+      ? (conversations[conversations.length - 1].lastMessageAt || conversations[conversations.length - 1].updatedAt)
       : null;
 
     const hasMore = conversations.length > limit;
@@ -231,14 +233,50 @@ export const removeMember = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy nhóm" });
     }
 
-    const isAdmin =
-      conversation.adminGroup.toString() === memberId.toString();
+    const actor = await User.findOne({ userId: req.user._id });
+    if (!actor) {
+      return res.status(401).json({ message: "Người dùng không hợp lệ" });
+    }
 
-    // 🔥 nếu admin bị remove → cần transfer admin
-    if (isAdmin && conversation.members.length > 1) {
+    const isSelfLeave = actor._id.toString() === memberId.toString();
+    const isTargetAdmin = conversation.adminGroup.toString() === memberId.toString();
+    const isActorAdmin = conversation.adminGroup.toString() === actor._id.toString();
+
+    // 🔒 1. Phân quyền: Nếu không phải tự rời nhóm (tức là thao tác xóa người khác khỏi nhóm)
+    if (!isSelfLeave) {
+      // Chỉ trưởng nhóm mới có quyền xóa người khác
+      if (!isActorAdmin) {
+        return res.status(403).json({
+          message: "Chỉ trưởng nhóm mới có quyền xóa thành viên khỏi nhóm"
+        });
+      }
+
+      // Tuyệt đối không ai có thể xóa trưởng nhóm
+      if (isTargetAdmin) {
+        return res.status(400).json({
+          message: "Không thể xóa trưởng nhóm khỏi nhóm"
+        });
+      }
+    }
+
+    // 🔒 2. Nếu chính trưởng nhóm tự rời nhóm:
+    if (isSelfLeave && isTargetAdmin && conversation.members.length > 1) {
       if (!newAdminId) {
         return res.status(400).json({
-          message: "Phải chọn trưởng nhóm mới",
+          message: "Trưởng nhóm phải chọn trưởng nhóm mới trước khi rời nhóm",
+        });
+      }
+      if (newAdminId.toString() === memberId.toString()) {
+        return res.status(400).json({
+          message: "Trưởng nhóm mới không thể là chính bạn",
+        });
+      }
+      const isNewAdminInGroup = conversation.members.some(
+        (m) => m._id.toString() === newAdminId.toString()
+      );
+      if (!isNewAdminInGroup) {
+        return res.status(400).json({
+          message: "Trưởng nhóm mới phải là một thành viên trong nhóm",
         });
       }
       conversation.adminGroup = newAdminId;
@@ -270,10 +308,8 @@ export const removeMember = async (req, res) => {
     await conversation.save();
     await conversation.populate("members", "fullname avatar isActive lastActive");
 
-    const actor = await User.findOne({ userId: req.user._id });
     const target = await User.findById(memberId);
 
-    const isSelfLeave = actor._id.toString() === memberId.toString();
     const systemText = isSelfLeave
       ? `${target.fullname} đã rời nhóm.`
       : `${actor.fullname} đã xóa ${target.fullname} khỏi nhóm.`;
@@ -285,10 +321,13 @@ export const removeMember = async (req, res) => {
       content: systemText
     });
 
+    const now = new Date();
     await Conversation.findByIdAndUpdate(conversationId, {
       lastMessage: systemText,
       lastSenderId: null,
-      updatedAt: Date.now()
+      lastMessageId: sysMessage._id,
+      lastMessageAt: now,
+      updatedAt: now
     });
 
     // 🔥 notify user bị kick / rời
@@ -425,7 +464,13 @@ export const updateAvatar = async (req, res) => {
   try {
     const { conversationId } = req.body;
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
+    if (!req.file) {
+      return res.status(400).json({ message: "Vui lòng chọn ảnh đại diện nhóm" });
+    }
+
+    // Upload trực tiếp lên Cloudinary
+    const result = await uploadToCloudinary(req.file.buffer, "group_avatars");
+    const avatarUrl = result.secure_url;
 
     const updated = await Conversation.findOneAndUpdate(
       { _id: conversationId },
@@ -489,27 +534,38 @@ export const markAsSeen = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
     }
 
-    // Initialize membersReadStatus if it doesn't exist
-    if (!conversation.membersReadStatus) {
-      conversation.membersReadStatus = [];
-    }
-
-    const index = conversation.membersReadStatus.findIndex(
+    const index = conversation.membersReadStatus?.findIndex(
       (status) => status.userId.toString() === user._id.toString()
     );
 
-    if (index > -1) {
-      conversation.membersReadStatus[index].lastSeenMessageId = lastSeenMessageId;
-      conversation.membersReadStatus[index].seenAt = Date.now();
-    } else {
-      conversation.membersReadStatus.push({
-        userId: user._id,
-        lastSeenMessageId,
-        seenAt: Date.now()
-      });
-    }
+    const now = new Date();
 
-    await conversation.save();
+    if (index !== undefined && index > -1) {
+      await Conversation.updateOne(
+        { _id: conversationId, "membersReadStatus.userId": user._id },
+        {
+          $set: {
+            "membersReadStatus.$.lastSeenMessageId": lastSeenMessageId,
+            "membersReadStatus.$.seenAt": now
+          }
+        },
+        { timestamps: false }
+      );
+    } else {
+      await Conversation.updateOne(
+        { _id: conversationId },
+        {
+          $push: {
+            membersReadStatus: {
+              userId: user._id,
+              lastSeenMessageId,
+              seenAt: now
+            }
+          }
+        },
+        { timestamps: false }
+      );
+    }
 
     // Populate members to respond with complete info
     const updatedConversation = await Conversation.findById(conversationId).populate("members", "fullname avatar isActive lastActive");
@@ -523,7 +579,7 @@ export const markAsSeen = async (req, res) => {
             conversationId,
             userId: user._id,
             lastSeenMessageId,
-            seenAt: Date.now()
+            seenAt: now
           });
         }
       }

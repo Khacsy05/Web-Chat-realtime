@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import Modal from '@/components/Modal';
 import ProfileFriend from '../profile/ProfileFriend';
 import useFriendStore from '@/stores/useFriendStore';
+import { getImageUrl } from '@/lib/utils';
 
 const AddFriend = () => {
   const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};
@@ -151,7 +152,7 @@ const AddFriend = () => {
               >
                 <button onClick={() => setOpenProfile(item)}>
                   <img
-                    src={`${API_BASE_URL}${item?.avatar || '/uploads/default-avatar.png'}`}
+                    src={getImageUrl(item?.avatar)}
                     alt={userName}
                     className="size-11 rounded-full object-cover"
                   />

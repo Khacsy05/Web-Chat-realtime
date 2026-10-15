@@ -8,7 +8,8 @@ frontend/.env
 
 # Chặn file build đầu ra của Frontend (nếu có)
 frontend/dist/
-
+.agents/
+.design-system/
 # Chặn các file rác của hệ điều hành Windows / Mac
 .DS_Store
 Thumbs.db

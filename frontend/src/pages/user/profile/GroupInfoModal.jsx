@@ -6,6 +6,7 @@ import messageService from '@/service/message';
 import useChatStore from '@/stores/useChatStore';
 import useAuthStore from '@/stores/useAuthStore';
 import ImageViewer from '@/components/ImageViewer';
+import { getImageUrl } from '@/lib/utils';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMobileBack }) => {
@@ -139,28 +140,28 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                         <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full  text-gray-400 overflow-hidden ">
                             {currentChat?.avatar ? (
                                 <img
-                                    src={`${API_BASE_URL}${currentChat.avatar}`}
+                                    src={getImageUrl(currentChat.avatar)}
                                     className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
-                                    onClick={() => setViewer(`${API_BASE_URL}${currentChat.avatar}`)}
+                                    onClick={() => setViewer(getImageUrl(currentChat.avatar))}
                                 />
                             )
                                 : (
                                     <div className="relative size-full">
                                         {/* Ảnh thành viên 1 */}
                                         <img
-                                            src={`${API_BASE_URL}${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                                            src={getImageUrl(members[0]?.avatar)}
                                             className="absolute top-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-20"
                                             alt="mem1"
                                         />
                                         {/* Ảnh thành viên 2 */}
                                         <img
-                                            src={`${API_BASE_URL}${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                                            src={getImageUrl(members[1]?.avatar)}
                                             className="absolute top-0 right-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-10"
                                             alt="mem2"
                                         />
                                         {/* Ảnh thành viên 3 */}
                                         <img
-                                            src={`${API_BASE_URL}${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                                            src={getImageUrl(members[2]?.avatar)}
                                             className="absolute bottom-0 left-1 size-9 rounded-full border-2 border-white object-cover shadow-sm z-30"
                                             alt="mem3"
                                         />
@@ -203,7 +204,7 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                         {displayedMembers.map((member, index) => (
                             <img
                                 key={member?._id || index}
-                                src={`${API_BASE_URL}${member?.avatar || '/uploads/default-avatar.png'}`}
+                                src={getImageUrl(member?.avatar)}
                                 alt={member?.fullname || 'Member'}
                                 className="h-9 w-9 rounded-full object-cover border-2 border-white shadow-sm"
                                 style={{ zIndex: displayedMembers.length - index }} // Giữ z-index giảm dần cho avatar
@@ -231,9 +232,9 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                                 <div 
                                     key={item._id} 
                                     className="aspect-square rounded overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer hover:opacity-90"
-                                    onClick={() => setViewer(`${API_BASE_URL}${item.image}`)}
+                                    onClick={() => setViewer(getImageUrl(item.image, ""))}
                                 >
-                                    <img src={`${API_BASE_URL}${item.image}`} alt="Media" className="h-full w-full object-cover" />
+                                    <img src={getImageUrl(item.image, "")} alt="Media" className="h-full w-full object-cover" />
                                 </div>
                             ))}
                         </div>
@@ -319,12 +320,9 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
 
                                                 {/* Avatar */}
                                                 <img
-                                                    src={
-                                                        m.avatar
-                                                            ? `${API_BASE_URL}${m.avatar}`
-                                                            : "/uploads/default-avatar.png"
-                                                    }
+                                                    src={getImageUrl(m.avatar)}
                                                     className="w-10 h-10 rounded-full object-cover border"
+                                                    alt={m.fullname}
                                                 />
 
                                                 {/* Name */}
@@ -464,7 +462,7 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                             <div className="gap-0.5 h-14 w-14 rounded-full overflow-hidden  p-0.5 shadow-sm">
                                 {currentChat?.avatar ? (
                                     <img
-                                        src={`${API_BASE_URL}${currentChat.avatar}`}
+                                        src={getImageUrl(currentChat.avatar)}
                                         className="h-full w-full rounded-full object-cover border border-gray-100 shadow-sm"
                                     />
                                 )
@@ -472,19 +470,19 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                                         <div className="relative size-full">
                                             {/* Ảnh thành viên 1 */}
                                             <img
-                                                src={`${API_BASE_URL}${members[0]?.avatar || '/uploads/default-avatar.png'}`}
+                                                src={getImageUrl(members[0]?.avatar)}
                                                 className="absolute top-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-20"
                                                 alt="mem1"
                                             />
                                             {/* Ảnh thành viên 2 */}
                                             <img
-                                                src={`${API_BASE_URL}${members[1]?.avatar || '/uploads/default-avatar.png'}`}
+                                                src={getImageUrl(members[1]?.avatar)}
                                                 className="absolute top-0 right-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-10"
                                                 alt="mem2"
                                             />
                                             {/* Ảnh thành viên 3 */}
                                             <img
-                                                src={`${API_BASE_URL}${members[2]?.avatar || '/uploads/default-avatar.png'}`}
+                                                src={getImageUrl(members[2]?.avatar)}
                                                 className="absolute bottom-0 left-0.5 size-7 rounded-full border-2 border-white object-cover shadow-sm z-30"
                                                 alt="mem3"
                                             />

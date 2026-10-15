@@ -54,7 +54,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
 
   return (
     <div className="relative flex h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden">
-      <main className="flex-1 min-h-0 overflow-hidden">
+      <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
         <ConversationView
           selectedConversation={selectedConversation}
           onMessageEvent={handleMessageEvent}
@@ -65,7 +65,7 @@ const ChatPanel = ({ selectedConversation, onMessageEvent, onMobileBack, onSelec
       </main>
 
       {isOpenRightPage && (
-        <aside className="hidden min-h-0 w-[340px] shrink-0 border-l bg-white lg:block">
+        <aside className="hidden h-full min-h-0 w-[340px] shrink-0 border-l bg-white lg:flex lg:flex-col overflow-hidden">
           {rightView === "details" && (
             <DetailsPanel
               selectedConversation={selectedConversation}

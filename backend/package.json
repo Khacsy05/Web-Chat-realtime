@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon -L server.js",
+    "dev": "nodemon --watch . --watch .env -L server.js",
     "start": "node server.js"
   },
   "keywords": [],
@@ -13,6 +13,8 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",

@@ -26,6 +26,15 @@ const conversationSchema = mongoose.Schema({
         ref: "User",
         default: null
     },
+    lastMessageId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Message",
+        default: null
+    },
+    lastMessageAt: {
+        type: Date,
+        default: Date.now
+    },
     adminGroup: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -67,5 +76,6 @@ const conversationSchema = mongoose.Schema({
         timestamps: true
     })
 conversationSchema.index({ members: 1 });
+conversationSchema.index({ lastMessageAt: -1 });
 conversationSchema.index({ "membersReadStatus.userId": 1 });
 export default mongoose.model("Conversation", conversationSchema);

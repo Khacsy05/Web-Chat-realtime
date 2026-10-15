@@ -2,6 +2,7 @@ import useFriendStore from '@/stores/useFriendStore';
 import React, { useEffect, useState, useMemo } from 'react';
 import { Camera, Search, X, ChevronRight } from 'lucide-react'; // Cài lucide-react nếu chưa có, hoặc thay bằng icon SVG
 import conversation from '@/service/conversation';
+import { getImageUrl } from '@/lib/utils';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const CreateGroup = ({ onClose }) => {
   const { friends, loading, fetchFriends } = useFriendStore();
@@ -155,7 +156,7 @@ const CreateGroup = ({ onClose }) => {
                           className="w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                         <img
-                          src={friend.avatar ? `${API_BASE_URL}${friend.avatar}` : 'https://via.placeholder.com/150'}
+                          src={getImageUrl(friend.avatar)}
                           className="w-10 h-10 rounded-full object-cover border border-gray-100"
                           alt=""
                         />

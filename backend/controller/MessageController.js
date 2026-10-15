@@ -3,6 +3,7 @@ import Conversation from "../models/Conversation.js";
 import User from "../models/User.js";
 import { onlineUsers } from "../config/socketStore.js";
 import { io } from "../server.js";
+import { uploadToCloudinary } from "../config/cloudinary.js";
 
 
 export const sendMessage = async (req, res) => {
@@ -20,11 +21,14 @@ export const sendMessage = async (req, res) => {
       content
     });
 
+    const now = new Date();
     // update last message conversation
     await Conversation.findByIdAndUpdate(conversationId, {
       lastMessage: content,
       lastSenderId: sender,
-      updatedAt: Date.now()
+      lastMessageId: message._id,
+      lastMessageAt: now,
+      updatedAt: now
     });
 
     res.json(message);
@@ -155,10 +159,10 @@ export const sendImage = async (req, res) => {
     if (!conversationId || !req.file) {
       return res.status(400).json({ message: "Thiếu dữ liệu" });
     }
-    let imageUrl = null;
-    if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
-    }
+
+    // Upload trực tiếp lên Cloudinary
+    const result = await uploadToCloudinary(req.file.buffer, "chat_images");
+    const imageUrl = result.secure_url;
     const message = await Message.create({
       conversationId,
       sender,
@@ -167,11 +171,14 @@ export const sendImage = async (req, res) => {
       image: imageUrl
     });
 
+    const now = new Date();
     // update last message conversation
     await Conversation.findByIdAndUpdate(conversationId, {
       lastMessage: "[Hình ảnh]",
       lastSenderId: sender,
-      updatedAt: Date.now()
+      lastMessageId: message._id,
+      lastMessageAt: now,
+      updatedAt: now
     });
 
     res.json(message);

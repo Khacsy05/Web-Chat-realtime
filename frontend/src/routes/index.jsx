@@ -36,9 +36,23 @@ const LoginPage = lazy(() => import("@/pages/Auth/Login"));
 const ForgotPass = lazy(() => import("@/pages/Auth/ForgotPass"));
 const ResetPass = lazy(() => import("@/pages/Auth/ResetPass"));
 const Register = lazy(() => import("@/pages/Auth/RegisterUser"));
+const ThemeShowcase = lazy(() => import("@/pages/demo/ThemeShowcase"));
+const AuthShowcase = lazy(() => import("@/pages/demo/AuthShowcase"));
 
 export default function AppRouter() {
   const routes = useRoutes([
+    {
+      path: "/auth-demo",
+      element: <AuthShowcase />,
+    },
+    {
+      path: "/demo",
+      element: <ThemeShowcase />,
+    },
+    {
+      path: "/themes",
+      element: <ThemeShowcase />,
+    },
     {
       path: "/login",
       element: <LoginPage />,

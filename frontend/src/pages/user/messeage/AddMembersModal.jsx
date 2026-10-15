@@ -3,6 +3,7 @@ import useFriendStore from "@/stores/useFriendStore";
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { getImageUrl } from "@/lib/utils";
 
 const AddMembersModal = ({ conversations, onClose }) => {
   const { friends, loading, fetchFriends } = useFriendStore();
@@ -119,12 +120,9 @@ const AddMembersModal = ({ conversations, onClose }) => {
                       />
 
                       <img
-                        src={
-                          friend.avatar
-                            ? `${API_BASE_URL}${friend.avatar}`
-                            : "https://via.placeholder.com/40"
-                        }
-                        className="w-9 h-9 rounded-full"
+                        src={getImageUrl(friend.avatar, "https://via.placeholder.com/40")}
+                        className="w-9 h-9 rounded-full object-cover"
+                        alt={friend.fullname}
                       />
 
                       <span className="text-sm">{friend.fullname}</span>
