@@ -86,6 +86,14 @@ const conversation = {
             throw error.response || { message: "Lỗi đánh dấu đã xem" };
         }
     },
+    togglePin: async (conversationId) => {
+        try {
+            const response = await api.put("/conversation/togglePin", { conversationId });
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Lỗi khi ghim hội thoại" };
+        }
+    },
 }
 
 export default conversation

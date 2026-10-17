@@ -22,18 +22,22 @@ import {
   LogOut
 } from 'lucide-react';
 import conversation from '@/service/conversation';
-import { div } from 'framer-motion/client';
 import AddMembersModal from './AddMembersModal';
+import PinLimitModal from './PinLimitModal';
+import { toast } from 'sonner';
 import useMessStore from '@/stores/useMessStore';
 import { getImageUrl } from '@/lib/utils';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMembers, onOpenMediaArchive, archiveItems }) => {
   const currentUser = useAuthStore((state) => state.user);
-  const setConversations = useChatStore((state) => state.setConversations);
+  const conversations = useChatStore((state) => state.conversations);
+  const updateConversationPin = useChatStore((state) => state.updateConversationPin);
 
   // Trạng thái đóng/mở các mục thả xuống (Accordion)
   const [isOpenMedia, setIsOpenMedia] = useState(true);
   const [isOpenFiles, setIsOpenFiles] = useState(true);
+  const [openPinModal, setOpenPinModal] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: "",
@@ -121,6 +125,70 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
   const closeConfirmDialog = () => {
     setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
+
+  const currentConvFromStore = conversations.find(
+    (c) => String(c._id) === String(selectedConversation?._id)
+  ) || selectedConversation;
+
+  const isPinned = Boolean(
+    currentConvFromStore?.pinnedBy?.some(
+      (p) => String(p.userId) === String(currentUser?.idUser)
+    )
+  );
+
+  const handleTogglePinFromPanel = async () => {
+    if (!selectedConversation?._id || pinLoading) return;
+
+    if (isPinned) {
+      setPinLoading(true);
+      try {
+        const res = await conversation.togglePin(selectedConversation._id);
+        if (res.data?.success) {
+          updateConversationPin(selectedConversation._id, currentUser?.idUser, false);
+          toast.success("Đã bỏ ghim cuộc trò chuyện");
+        }
+      } catch (error) {
+        toast.error(error?.data?.message || "Lỗi khi bỏ ghim");
+      } finally {
+        setPinLoading(false);
+      }
+    } else {
+      const pinnedCount = conversations.filter((c) =>
+        c.pinnedBy?.some((p) => String(p.userId) === String(currentUser?.idUser))
+      ).length;
+
+      if (pinnedCount >= 5) {
+        setOpenPinModal(true);
+        return;
+      }
+
+      setPinLoading(true);
+      try {
+        const res = await conversation.togglePin(selectedConversation._id);
+        if (res.data?.success) {
+          updateConversationPin(
+            selectedConversation._id,
+            currentUser?.idUser,
+            true,
+            res.data.pinnedAt
+          );
+          toast.success("Đã ghim cuộc trò chuyện lên đầu");
+        }
+      } catch (error) {
+        if (
+          error?.data?.code === "MAX_PINNED_REACHED" ||
+          error?.response?.data?.code === "MAX_PINNED_REACHED"
+        ) {
+          setOpenPinModal(true);
+        } else {
+          toast.error(error?.data?.message || "Lỗi khi ghim cuộc trò chuyện");
+        }
+      } finally {
+        setPinLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="flex h-full w-full flex-col bg-white border-l border-gray-200 select-none overflow-y-auto">
       {/* 1. Header Tiêu đề (Đổi chữ linh hoạt theo ảnh) */}
@@ -198,11 +266,32 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
               <span className="text-[12px] text-gray-600 font-medium leading-tight">Tắt thông báo</span>
             </button>
 
-            <button className="flex flex-col items-center gap-1.5 text-center group">
-              <div className="flex size-9 items-center justify-center rounded-full bg-[#f1f3f5] text-[#1f2328] transition-colors group-hover:bg-[#e2e6ea]">
-                <Pin size={18} />
+            <button
+              type="button"
+              disabled={pinLoading}
+              onClick={handleTogglePinFromPanel}
+              className="flex flex-col items-center gap-1.5 text-center group cursor-pointer transition disabled:opacity-50"
+            >
+              <div
+                className={`flex size-9 items-center justify-center rounded-full transition-colors ${
+                  isPinned
+                    ? "bg-[#e8edff] text-[#0068ff]"
+                    : "bg-[#f1f3f5] text-[#1f2328] group-hover:bg-[#e2e6ea]"
+                }`}
+              >
+                <Pin
+                  size={18}
+                  className={isPinned ? "-rotate-45" : ""}
+                  fill={isPinned ? "#0068ff" : "none"}
+                />
               </div>
-              <span className="text-[12px] text-gray-600 font-medium leading-tight">Ghim hội thoại</span>
+              <span
+                className={`text-[12px] font-medium leading-tight ${
+                  isPinned ? "text-[#0068ff] font-semibold" : "text-gray-600"
+                }`}
+              >
+                {isPinned ? "Bỏ ghim" : "Ghim hội thoại"}
+              </span>
             </button>
 
             <button
@@ -231,11 +320,32 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
               <span className="text-[12px] text-gray-600 font-medium px-1">Tắt thông báo</span>
             </button>
 
-            <button className="flex flex-col items-center gap-1.5 text-center group">
-              <div className="flex size-9 items-center justify-center rounded-full bg-[#f1f3f5] text-[#1f2328] transition-colors group-hover:bg-[#e2e6ea]">
-                <Pin size={18} />
+            <button
+              type="button"
+              disabled={pinLoading}
+              onClick={handleTogglePinFromPanel}
+              className="flex flex-col items-center gap-1.5 text-center group cursor-pointer transition disabled:opacity-50"
+            >
+              <div
+                className={`flex size-9 items-center justify-center rounded-full transition-colors ${
+                  isPinned
+                    ? "bg-[#e8edff] text-[#0068ff]"
+                    : "bg-[#f1f3f5] text-[#1f2328] group-hover:bg-[#e2e6ea]"
+                }`}
+              >
+                <Pin
+                  size={18}
+                  className={isPinned ? "-rotate-45" : ""}
+                  fill={isPinned ? "#0068ff" : "none"}
+                />
               </div>
-              <span className="text-[12px] text-gray-600 font-medium px-1">Ghim hội thoại</span>
+              <span
+                className={`text-[12px] font-medium px-1 ${
+                  isPinned ? "text-[#0068ff] font-semibold" : "text-gray-600"
+                }`}
+              >
+                {isPinned ? "Bỏ ghim" : "Ghim hội thoại"}
+              </span>
             </button>
 
             <button className="flex flex-col items-center gap-1.5 text-center group">
@@ -444,6 +554,13 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
         <AddMembersModal
           conversations={selectedConversation}
           onClose={() => setOpenAddMembers(false)}
+        />
+      )}
+      {openPinModal && (
+        <PinLimitModal
+          isOpen={openPinModal}
+          onClose={() => setOpenPinModal(false)}
+          targetConversation={currentConvFromStore}
         />
       )}
     </div>

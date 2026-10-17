@@ -70,6 +70,18 @@ const conversationSchema = mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: "User"
         }
+    ],
+    pinnedBy: [
+        {
+            userId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User"
+            },
+            pinnedAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
     ]
 },
     {
@@ -78,4 +90,5 @@ const conversationSchema = mongoose.Schema({
 conversationSchema.index({ members: 1 });
 conversationSchema.index({ lastMessageAt: -1 });
 conversationSchema.index({ "membersReadStatus.userId": 1 });
+conversationSchema.index({ "pinnedBy.userId": 1 });
 export default mongoose.model("Conversation", conversationSchema);

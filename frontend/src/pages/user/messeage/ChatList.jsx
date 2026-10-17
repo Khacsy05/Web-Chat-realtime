@@ -7,7 +7,7 @@ import UserCardChat from './UserCardChat';
 import socket from '@/lib/socket';
 import CreateGroup from './CreateGroup';
 import Modal from '@/components/Modal';
-import useChatStore from '@/stores/useChatStore';
+import useChatStore, { sortConversations } from '@/stores/useChatStore';
 import useAuthStore from '@/stores/useAuthStore';
 
 const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEvent }) => {
@@ -49,10 +49,12 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
       const more = res.data.hasMore;
 
       setConversations((prev) => {
-        if (reset) return data;
-        const map = new Map();
-        [...prev, ...data].forEach((item) => map.set(item._id, item));
-        return Array.from(map.values());
+        const raw = reset ? data : (() => {
+          const map = new Map();
+          [...prev, ...data].forEach((item) => map.set(item._id, item));
+          return Array.from(map.values());
+        })();
+        return sortConversations(raw, currentUser?.idUser);
       });
 
       setCursor(nextCursor);
@@ -118,11 +120,10 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
         lastMessageAt: lastMessageEvent.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      next.splice(i, 1);
-      next.unshift(updated);
-      return next;
+      next[i] = updated;
+      return sortConversations(next, currentUser?.idUser);
     });
-  }, [lastMessageEvent, setConversations]);
+  }, [lastMessageEvent, setConversations, currentUser?.idUser]);
 
   // Lọc nhanh dữ liệu tại Client để tăng tốc độ hiển thị giao diện
   const filteredConversations = conversations.filter((item) => {
