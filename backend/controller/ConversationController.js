@@ -174,6 +174,25 @@ export const getUserConversations = async (req, res) => {
     const hasMore = conversations.length > limit;
     if (hasMore) conversations.pop();
 
+    // Sắp xếp: Hội thoại đã ghim lên đầu (sớm hơn thì ở trên), hội thoại không ghim xếp theo lastMessageAt mới nhất
+    conversations.sort((a, b) => {
+      const pinA = a.pinnedBy?.find(p => p.userId.toString() === user._id.toString());
+      const pinB = b.pinnedBy?.find(p => p.userId.toString() === user._id.toString());
+      const isPinnedA = Boolean(pinA);
+      const isPinnedB = Boolean(pinB);
+
+      if (isPinnedA && !isPinnedB) return -1;
+      if (!isPinnedA && isPinnedB) return 1;
+
+      if (isPinnedA && isPinnedB) {
+        return new Date(pinA.pinnedAt).getTime() - new Date(pinB.pinnedAt).getTime();
+      }
+
+      const timeA = new Date(a.lastMessageAt || a.updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.lastMessageAt || b.updatedAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+
     res.json({
       items: conversations,
       hasMore,
@@ -586,6 +605,83 @@ export const markAsSeen = async (req, res) => {
     });
 
     return res.status(200).json(updatedConversation);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const togglePinConversation = async (req, res) => {
+  try {
+    const { conversationId } = req.body;
+    if (!conversationId) {
+      return res.status(400).json({ message: "Thiếu conversationId" });
+    }
+
+    const user = await User.findOne({ userId: req.user._id });
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    const isPinned = conversation.pinnedBy?.some(
+      (p) => p.userId.toString() === user._id.toString()
+    );
+
+    if (isPinned) {
+      // Bỏ ghim
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { $pull: { pinnedBy: { userId: user._id } } },
+        { timestamps: false }
+      );
+
+      return res.status(200).json({
+        success: true,
+        isPinned: false,
+        conversationId,
+        message: "Đã bỏ ghim cuộc trò chuyện"
+      });
+    } else {
+      // Kiểm tra giới hạn 5 đoạn hội thoại được ghim
+      const pinnedCount = await Conversation.countDocuments({
+        members: user._id,
+        "pinnedBy.userId": user._id
+      });
+
+      if (pinnedCount >= 5) {
+        return res.status(400).json({
+          success: false,
+          code: "MAX_PINNED_REACHED",
+          message: "Chỉ được ghim tối đa 5 cuộc trò chuyện"
+        });
+      }
+
+      const pinnedAt = new Date();
+      await Conversation.updateOne(
+        { _id: conversationId },
+        {
+          $push: {
+            pinnedBy: {
+              userId: user._id,
+              pinnedAt
+            }
+          }
+        },
+        { timestamps: false }
+      );
+
+      return res.status(200).json({
+        success: true,
+        isPinned: true,
+        conversationId,
+        pinnedAt,
+        message: "Đã ghim cuộc trò chuyện"
+      });
+    }
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

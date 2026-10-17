@@ -1,7 +1,23 @@
 import { Input } from '@/components/ui/input';
 import useAuthStore from '@/stores/useAuthStore';
 import useMessStore from '@/stores/useMessStore';
-import { ArrowLeft, MoreHorizontal, PanelLeft, Search, Send, ThumbsUp } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronDown,
+  Contact,
+  CreditCard,
+  Image as ImageIcon,
+  MessageSquare,
+  MoreHorizontal,
+  PanelLeft,
+  Paperclip,
+  Search,
+  Send,
+  Smile,
+  Sticker,
+  ThumbsUp,
+  Zap,
+} from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -10,7 +26,6 @@ import { toast } from 'sonner';
 import socket from '@/lib/socket'; // Keep socket since it emits "join" and status requests in this component
 import Modal from '@/components/Modal';
 import MenuProfile from '../profile/MenuProfile';
-import { Image as ImageIcon } from "lucide-react";
 import ImageViewer from '@/components/ImageViewer';
 import { getImageUrl } from '@/lib/utils';
 
@@ -89,6 +104,7 @@ const ConversationView = ({
     handleSubmit,
     reset,
     watch,
+    setValue,
   } = useForm({
     resolver: yupResolver(messSchema),
     mode: "onSubmit",
@@ -96,6 +112,32 @@ const ConversationView = ({
   });
 
   const content = watch("content");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    if (showEmojiPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showEmojiPicker]);
+
+  const QUICK_EMOJIS = [
+    "👍", "❤️", "😂", "🥰", "😭", "😊", "🔥", "🎉",
+    "👏", "😮", "🙏", "🤣", "🥺", "✨", "💯", "👋",
+    "💪", "😍", "🤩", "😎", "🥳", "💔", "🤔", "😴"
+  ];
+
+  const handleSelectEmoji = (emoji) => {
+    const current = watch("content") || "";
+    setValue("content", current + emoji);
+    handleTyping();
+  };
 
   // Effect to load messages and set up socket listeners on conversation change
   useEffect(() => {
@@ -617,43 +659,192 @@ const ConversationView = ({
             </span>
           </div>
         )}
-      <div className="shrink-0 border-t bg-white p-3">
-        <form onSubmit={handleSubmit(handleSendMess)}>
-          <div className="flex items-center gap-2">
-            {/* NÚT GỬI ẢNH */}
-            <label className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-[#edf2ff] text-[#3b5bdb] hover:bg-[#e0e7ff]">
-              <ImageIcon size={20} />
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleSendImage}
-              />
-            </label>
+      {/* KHUNG NHẬP TIN NHẮN THEO PHONG CÁCH ZALO */}
+      <div className="relative shrink-0 border-t border-gray-200 bg-white">
+        {/* EMOJI PICKER POPUP */}
+        {showEmojiPicker && (
+          <div
+            ref={emojiPickerRef}
+            className="absolute bottom-full right-3 mb-2 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+          >
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 text-xs font-semibold text-gray-500">
+              <span>Biểu cảm phổ biến</span>
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-6 gap-2 text-2xl select-none">
+              {QUICK_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => handleSelectEmoji(emoji)}
+                  className="flex items-center justify-center size-9 rounded-lg hover:bg-gray-100 active:scale-90 transition cursor-pointer"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-            {/* INPUT TEXT */}
-            <Input
-              className="h-10 flex-1"
-              placeholder="Nhap tin nhan..."
-              {...register("content")}
-              onKeyDown={handleTyping}
+        {/* TOOLBAR (HÀNG 1) */}
+        <div className="flex items-center gap-1 sm:gap-1.5 px-3 pt-2 pb-1 text-[#475569]">
+          {/* 1. Sticker */}
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
+            title="Gửi sticker / biểu cảm"
+          >
+            <Sticker size={19} strokeWidth={1.8} />
+          </button>
+
+          {/* 2. Gửi ảnh */}
+          <label
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition cursor-pointer"
+            title="Gửi hình ảnh"
+          >
+            <ImageIcon size={19} strokeWidth={1.8} />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleSendImage}
             />
+          </label>
 
-            {/* NÚT SEND / LIKE */}
+          {/* 3. Đính kèm file */}
+          <label
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition cursor-pointer"
+            title="Đính kèm tập tin"
+          >
+            <Paperclip size={19} strokeWidth={1.8} />
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleSendImage}
+            />
+          </label>
+
+          {/* 4. Danh thiếp */}
+          <button
+            type="button"
+            onClick={() => toast.info("Tính năng gửi danh thiếp")}
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
+            title="Gửi danh thiếp"
+          >
+            <Contact size={19} strokeWidth={1.8} />
+          </button>
+
+          {/* 5. Chụp màn hình [Z] ▾ */}
+          <button
+            type="button"
+            onClick={() => toast.info("Tính năng chụp màn hình")}
+            className="flex items-center gap-0.5 px-1.5 py-1 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
+            title="Chụp ảnh màn hình"
+          >
+            <span className="flex size-[17px] items-center justify-center rounded-[3px] border border-dashed border-gray-600 text-[10px] font-bold">
+              Z
+            </span>
+            <ChevronDown size={11} className="text-gray-500" />
+          </button>
+
+          {/* 6. Định dạng văn bản */}
+          <button
+            type="button"
+            onClick={() => toast.info("Định dạng văn bản")}
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
+            title="Định dạng văn bản"
+          >
+            <span className="flex items-baseline font-serif text-[15px] font-bold leading-none">
+              A<span className="text-[10px] -ml-0.5">✎</span>
+            </span>
+          </button>
+
+          {/* 7. Tin nhắn nhanh (Icon bong bóng chat có tia sét) */}
+          <button
+            type="button"
+            onClick={() => toast.info("Tin nhắn nhanh")}
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
+            title="Tin nhắn nhanh"
+          >
+            <div className="relative flex items-center justify-center">
+              <MessageSquare size={18} strokeWidth={1.8} />
+              <Zap size={9} className="absolute text-current fill-current" />
+            </div>
+          </button>
+
+          {/* 8. Nhắc hẹn / Bình chọn */}
+          <button
+            type="button"
+            onClick={() => toast.info("Gửi danh thiếp hoặc thẻ")}
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
+            title="Tạo nhắc hẹn hoặc bình chọn"
+          >
+            <CreditCard size={19} strokeWidth={1.8} />
+          </button>
+
+          {/* 9. Thêm tùy chọn */}
+          <button
+            type="button"
+            onClick={() => toast.info("Tùy chọn khác")}
+            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
+            title="Tùy chọn khác"
+          >
+            <MoreHorizontal size={19} strokeWidth={1.8} />
+          </button>
+        </div>
+
+        {/* INPUT VÀ NÚT GỬI (HÀNG 2) */}
+        <form onSubmit={handleSubmit(handleSendMess)} className="flex items-center px-3 pb-2 pt-0.5 gap-2">
+          <input
+            type="text"
+            autoComplete="off"
+            className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 text-[14.5px] text-gray-800 placeholder:text-gray-400 placeholder:text-[14px] px-1 py-1 h-9"
+            placeholder={isGroup ? `Nhập @, tin nhắn tới ${displayName}` : `Nhập tin nhắn tới ${displayName}...`}
+            {...register("content")}
+            onKeyDown={(e) => {
+              handleTyping();
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(handleSendMess)();
+              }
+            }}
+          />
+
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Nút Emoji */}
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              className="p-1.5 text-gray-500 hover:text-[#0068ff] hover:bg-gray-100 rounded-full transition"
+              title="Biểu cảm"
+            >
+              <Smile size={21} strokeWidth={1.8} />
+            </button>
+
+            {/* Nút Gửi / Like (👍) */}
             {content?.trim() ? (
               <button
                 type="submit"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf2ff] text-[#3b5bdb]"
+                className="p-1.5 text-[#0068ff] hover:bg-blue-50 rounded-full transition cursor-pointer"
+                title="Gửi (Enter)"
               >
-                <Send size={20} strokeWidth={2.5} fill="#4f6fef" />
+                <Send size={20} fill="#0068ff" strokeWidth={1} />
               </button>
             ) : (
               <button
                 type="button"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf2ff] text-[#3b5bdb]"
+                className="flex items-center justify-center p-1 text-[23px] leading-none hover:scale-110 active:scale-90 transition select-none cursor-pointer"
                 onClick={() => handleSendMess({ content: LIKE_EMOJI })}
+                title="Gửi Like"
               >
-                <ThumbsUp size={20} fill="#d2dd10" />
+                👍
               </button>
             )}
           </div>

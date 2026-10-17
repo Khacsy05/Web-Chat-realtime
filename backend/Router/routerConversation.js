@@ -1,6 +1,6 @@
 import express from "express"
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { addMember, createGroupConversation, createOrGetConversation, deleteConversation, getUserConversations, removeMember, updateAvatar, updateNameGroup, markAsSeen } from "../controller/ConversationController.js";
+import { addMember, createGroupConversation, createOrGetConversation, deleteConversation, getUserConversations, removeMember, updateAvatar, updateNameGroup, markAsSeen, togglePinConversation } from "../controller/ConversationController.js";
 import { uploads } from "../config/upload.js";
 const routerConversation = express.Router();
 routerConversation.use(authMiddleware)
@@ -13,4 +13,5 @@ routerConversation.post("/createGroupConversation", uploads.single("avatar"), cr
 routerConversation.put("/updateAvatar", uploads.single("avatar"), updateAvatar);
 routerConversation.put("/updateNameGroup", updateNameGroup);
 routerConversation.put("/markAsSeen", markAsSeen);
+routerConversation.put("/togglePin", togglePinConversation);
 export default routerConversation

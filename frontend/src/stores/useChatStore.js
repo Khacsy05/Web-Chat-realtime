@@ -1,5 +1,29 @@
 import { create } from "zustand";
 import socket from "@/lib/socket";
+import useAuthStore from "@/stores/useAuthStore";
+
+export const sortConversations = (list, currentUserId) => {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a, b) => {
+    const pinA = a.pinnedBy?.find((p) => String(p.userId) === String(currentUserId));
+    const pinB = b.pinnedBy?.find((p) => String(p.userId) === String(currentUserId));
+    const isPinnedA = Boolean(pinA);
+    const isPinnedB = Boolean(pinB);
+
+    if (isPinnedA && !isPinnedB) return -1;
+    if (!isPinnedA && isPinnedB) return 1;
+
+    // "đoạn nào sớm hơn thì nên trên" -> pinned earlier on top (pinnedAt ascending)
+    if (isPinnedA && isPinnedB) {
+      return new Date(pinA.pinnedAt).getTime() - new Date(pinB.pinnedAt).getTime();
+    }
+
+    // Unpinned chats: newest lastMessageAt goes on top
+    const timeA = new Date(a.lastMessageAt || a.updatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.lastMessageAt || b.updatedAt || b.createdAt || 0).getTime();
+    return timeB - timeA;
+  });
+};
 
 const useChatStore = create((set, get) => ({
   conversations: [],
@@ -31,10 +55,10 @@ const useChatStore = create((set, get) => ({
       };
 
       const next = [...state.conversations];
-      next.splice(idx, 1);
-      next.unshift(updated);
+      next[idx] = updated;
 
-      return { conversations: next };
+      const currentUserId = useAuthStore.getState().user?.idUser;
+      return { conversations: sortConversations(next, currentUserId) };
     });
   },
 
@@ -132,6 +156,23 @@ const useChatStore = create((set, get) => ({
         return { ...c, membersReadStatus };
       })
     }));
+  },
+  updateConversationPin: (conversationId, userId, isPinned, pinnedAt) => {
+    set((state) => {
+      const next = state.conversations.map((c) => {
+        if (String(c._id) !== String(conversationId)) return c;
+        let pinnedBy = c.pinnedBy ? [...c.pinnedBy] : [];
+        if (isPinned) {
+          if (!pinnedBy.some((p) => String(p.userId) === String(userId))) {
+            pinnedBy.push({ userId, pinnedAt: pinnedAt || new Date().toISOString() });
+          }
+        } else {
+          pinnedBy = pinnedBy.filter((p) => String(p.userId) !== String(userId));
+        }
+        return { ...c, pinnedBy };
+      });
+      return { conversations: sortConversations(next, userId) };
+    });
   },
   onUserSeenUpdate: ({ conversationId, userId, lastSeenMessageId }) => {
     get().updateConversationSeen(conversationId, userId, lastSeenMessageId);
