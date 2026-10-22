@@ -203,6 +203,67 @@ const useMessStore = create((set, get) => ({
     }
   },
 
+  sendSticker: async ({ conversationId, stickerUrl, currentUser, userName, members, onMessageEvent }) => {
+    try {
+      if (!conversationId || !currentUser?.idUser) {
+        toast.error('Không tìm thấy cuộc trò chuyện để gửi sticker');
+        return false;
+      }
+      if (!stickerUrl) return false;
+
+      if (!socket.connected) {
+        socket.connect();
+      }
+
+      const res = await messageService.sendMessage({
+        conversationId,
+        content: "[Sticker]",
+        type: "sticker",
+        image: stickerUrl,
+      });
+
+      const newMsg = {
+        messageId: res.data._id,
+        senderId: currentUser.idUser,
+        name: userName || 'Người dùng',
+        content: "[Sticker]",
+        type: 'sticker',
+        image: stickerUrl,
+        createdAt: res.data.createdAt || new Date().toISOString(),
+      };
+
+      set((state) => ({
+        mess: [...state.mess, newMsg],
+      }));
+
+      onMessageEvent?.({
+        conversationId: String(conversationId),
+        senderId: currentUser.idUser,
+        content: "[Sticker]",
+        type: 'sticker',
+        createdAt: new Date().toISOString(),
+      });
+
+      socket.emit('send-message', {
+        from: String(currentUser.idUser),
+        members: members || [],
+        text: "[Sticker]",
+        type: 'sticker',
+        image: stickerUrl,
+        conversationId: String(conversationId),
+        messageId: String(res.data._id),
+        name: userName || 'Người dùng',
+        createdAt: res.data.createdAt,
+      });
+
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error('Gửi sticker thất bại');
+      return false;
+    }
+  },
+
   revokeMessage: async (msgId, conversationId) => {
     try {
       await messageService.revokeMessage(msgId, conversationId);

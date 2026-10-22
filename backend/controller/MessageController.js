@@ -9,16 +9,21 @@ import { uploadToCloudinary } from "../config/cloudinary.js";
 export const sendMessage = async (req, res) => {
   try {
     const user = await User.findOne({ userId: req.user._id });
-    const { conversationId, content } = req.body;
+    const { conversationId, content, type, image } = req.body;
     const sender = user._id;
-    if (!conversationId || !content) {
+    if (!conversationId || (!content && !image)) {
       return res.status(400).json({ message: "Thiếu dữ liệu" });
     }
+
+    const msgType = type || "text";
+    const msgContent = content || (msgType === "sticker" ? "[Sticker]" : "");
 
     const message = await Message.create({
       conversationId,
       sender,
-      content
+      content: msgContent,
+      type: msgType,
+      image: image || null
     });
 
     const now = new Date();

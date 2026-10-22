@@ -20,7 +20,10 @@ export function getImageUrl(path, defaultPath = "/uploads/default-avatar.png") {
       ? defaultPath
       : `${API_BASE_URL}${defaultPath.startsWith("/") ? "" : "/"}${defaultPath}`;
   }
-  if (typeof path === "string" && (path.startsWith("http://") || path.startsWith("https://"))) {
+  if (
+    typeof path === "string" &&
+    (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("/stickers/"))
+  ) {
     return path;
   }
   return `${API_BASE_URL}${typeof path === "string" && path.startsWith("/") ? "" : "/"}${path}`;
