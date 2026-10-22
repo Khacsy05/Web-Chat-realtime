@@ -69,6 +69,14 @@ const auth = {
             throw error.response || { message: "Lỗi đổi mật khẩu" };
         }
     },
+    loginGoogle: async (idToken) => {
+        try {
+            const response = await api.post("/auth/google", { idToken });
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Lỗi đăng nhập Google" };
+        }
+    },
 }
 export default auth
 
