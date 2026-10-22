@@ -3,6 +3,10 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken"
 import transporter from "../services/auth.service.js";
 import bcrypt from "bcryptjs";
+import { OAuth2Client } from "google-auth-library";
+import StickerPack from "../models/StickerPack.js";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 
 export const login = async (req, res) => {
@@ -399,3 +403,127 @@ export const logout = async (req, res) => {
         });
     }
 };
+
+export const loginWithGoogle = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) {
+            return res.status(400).json({ message: "Thiếu Google Token" });
+        }
+
+        const clientId = process.env.GOOGLE_CLIENT_ID;
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: clientId,
+        });
+
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) {
+            return res.status(400).json({ message: "Google Token không hợp lệ" });
+        }
+
+        const { email, name, picture, sub: googleId } = payload;
+
+        // 1. Kiểm tra tài khoản đã tồn tại hay chưa
+        let auth = await Auth.findOne({ email: email.toLowerCase() });
+
+        if (!auth) {
+            // Tạo username ngẫu nhiên duy nhất từ email
+            let baseUsername = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+            let username = baseUsername;
+            let counter = 1;
+            while (await Auth.findOne({ username })) {
+                username = `${baseUsername}${counter++}`;
+            }
+
+            auth = await Auth.create({
+                username,
+                email: email.toLowerCase(),
+                password: null,
+                authType: "google",
+                googleId,
+                role: "user",
+            });
+
+            // Lấy danh sách sticker mặc định
+            const defaultPacks = await StickerPack.find({ isDefault: true });
+            const defaultPackIds = defaultPacks.map((p) => p._id);
+
+            // Tạo hồ sơ User tương ứng
+            await User.create({
+                userId: auth._id,
+                fullname: name || username,
+                avatar: picture || "/uploads/default-avatar.png",
+                installedStickers: defaultPackIds,
+            });
+        } else {
+            // Cập nhật googleId và authType nếu chưa có
+            if (!auth.googleId) {
+                auth.googleId = googleId;
+                if (!auth.authType || auth.authType === "local") {
+                    auth.authType = "google";
+                }
+                await auth.save();
+            }
+        }
+
+        let isUser = await User.findOne({ userId: auth._id });
+        if (!isUser) {
+            const defaultPacks = await StickerPack.find({ isDefault: true });
+            isUser = await User.create({
+                userId: auth._id,
+                fullname: name || auth.username,
+                avatar: picture || "/uploads/default-avatar.png",
+                installedStickers: defaultPacks.map((p) => p._id),
+            });
+        }
+
+        // Tạo Access Token (15m)
+        const token = jwt.sign(
+            {
+                _id: auth._id,
+                email: auth.email,
+                role: auth.role,
+            },
+            process.env.JWT_SECRET || "SECRET_KEY",
+            { expiresIn: "15m" }
+        );
+
+        // Tạo Refresh Token (7d)
+        const refreshToken = jwt.sign(
+            {
+                _id: auth._id,
+            },
+            process.env.JWT_REFRESH_SECRET || "REFRESH_SECRET_KEY",
+            { expiresIn: "7d" }
+        );
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        return res.status(200).json({
+            message: "Đăng nhập Google thành công",
+            token,
+            user: {
+                _id: auth._id,
+                username: auth.username,
+                email: auth.email,
+                role: auth.role,
+                fullname: isUser?.fullname || null,
+                avatar: isUser?.avatar || "/uploads/default-avatar.png",
+                idUser: isUser?._id,
+            },
+        });
+    } catch (error) {
+        console.error("Lỗi Google Login:", error);
+        return res.status(400).json({
+            message: "Xác thực tài khoản Google thất bại",
+            error: error.message,
+        });
+    }
+};
+

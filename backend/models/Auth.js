@@ -10,8 +10,18 @@ const authSchema = mongoose.Schema({
     },
     password: {
         type: String,
-        required: true,
-        trim: true
+        required: false,
+        trim: true,
+        default: null,
+    },
+    authType: {
+        type: String,
+        enum: ["local", "google"],
+        default: "local"
+    },
+    googleId: {
+        type: String,
+        default: null
     },
     role: {
         type: String,
@@ -31,7 +41,7 @@ const authSchema = mongoose.Schema({
 
 // Pre-save middleware to automatically hash password
 authSchema.pre("save", async function() {
-    if (!this.isModified("password")) {
+    if (!this.password || !this.isModified("password")) {
         return;
     }
     const salt = await bcrypt.genSalt(10);
