@@ -1,5 +1,6 @@
 import user from '@/service/user';
 import { create } from 'zustand';
+import useChatStore from '@/stores/useChatStore';
 
 const useFriendStore = create((set, get) => ({
   friends: [],
@@ -126,7 +127,14 @@ const useFriendStore = create((set, get) => ({
 
   acceptFriendRequest: async (idRequest) => {
     try {
-      await user.acceptRequest(idRequest);
+      const res = await user.acceptRequest(idRequest);
+      const newConversation = res.data?.conversation;
+
+      // Đưa cuộc trò chuyện mới vào danh sách hội thoại của useChatStore
+      if (newConversation) {
+        useChatStore.getState().onConversationAdded(newConversation);
+      }
+
       set((state) => {
         // Find friend details from request to add to friends list
         const request = state.receivedRequests.find(req => req._id === idRequest);
@@ -140,7 +148,7 @@ const useFriendStore = create((set, get) => ({
           totalFriends: state.totalFriends + 1
         };
       });
-      return { success: true };
+      return { success: true, conversation: newConversation };
     } catch (error) {
       console.error(error);
       return { success: false, error };
@@ -194,6 +202,11 @@ const useFriendStore = create((set, get) => ({
     };
 
     store.handleReceiveAcceptRequest = (data) => {
+      // Đưa cuộc trò chuyện mới vào danh sách hội thoại của useChatStore nếu có
+      if (data.conversation) {
+        useChatStore.getState().onConversationAdded(data.conversation);
+      }
+
       // Move request from sentRequests to friends list in real-time
       set((state) => {
         const acceptedReq = state.sentRequests.find((req) => req._id === data.requestId);
