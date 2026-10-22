@@ -36,14 +36,12 @@ const userSchema = new mongoose.Schema({
       type: Date,
       default: null,
     },
-    isActive: {
-      type: Boolean,
-      default: false,
-    },
-    lastActive: {
-      type: Date,
-      default: null,
-    },
+    installedStickers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "StickerPack",
+      },
+    ],
 }, {
     timestamps: true
 });

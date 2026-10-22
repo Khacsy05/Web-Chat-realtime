@@ -9,6 +9,7 @@ import { onlineUsers } from './config/socketStore.js';
 import routerConversation from './Router/routerConversation.js';
 import routerMessage from './Router/routerMessage.js';
 import routerNotification from './Router/routerNotification.js';
+import routerSticker from './Router/routerSticker.js';
 import cors from "cors";
 import User from './models/User.js';
 import cookieParser from "cookie-parser"; // 👈 Add cookie-parser
@@ -36,7 +37,9 @@ app.use("/api/user", routerUser);
 app.use("/api/conversation", routerConversation);
 app.use("/api/message", routerMessage);
 app.use("/api/notification", routerNotification);
+app.use("/api/stickers", routerSticker);
 app.use("/uploads", express.static("uploads"));
+app.use("/stickers", express.static("public/stickers"));
 const server = http.createServer(app);
 
 const io = new Server(server, {

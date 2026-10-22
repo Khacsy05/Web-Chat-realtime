@@ -27,6 +27,9 @@ import socket from '@/lib/socket'; // Keep socket since it emits "join" and stat
 import Modal from '@/components/Modal';
 import MenuProfile from '../profile/MenuProfile';
 import ImageViewer from '@/components/ImageViewer';
+import StickerPicker from './StickerPicker';
+import { findPackByStickerUrl } from '@/constants/stickers';
+import useStickerStore from '@/stores/useStickerStore';
 import { getImageUrl } from '@/lib/utils';
 
 const messSchema = yup.object().shape({
@@ -63,6 +66,7 @@ const ConversationView = ({
     revokeMessage,
     deleteMessageForMe,
     sendImage,
+    sendSticker,
     sendTyping,
     setupSocketListeners,
     clearMessages,
@@ -115,17 +119,27 @@ const ConversationView = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef(null);
 
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [selectedStickerPackId, setSelectedStickerPackId] = useState("cuppy");
+  const stickerPickerRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
+      // Nếu đang mở popup cửa hàng nhãn dán thì không tự đóng picker
+      if (useStickerStore.getState().isStoreOpen) return;
+
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
         setShowEmojiPicker(false);
       }
+      if (stickerPickerRef.current && !stickerPickerRef.current.contains(e.target)) {
+        setShowStickerPicker(false);
+      }
     };
-    if (showEmojiPicker) {
+    if (showEmojiPicker || showStickerPicker) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showEmojiPicker]);
+  }, [showEmojiPicker, showStickerPicker]);
 
   const QUICK_EMOJIS = [
     "👍", "❤️", "😂", "🥰", "😭", "😊", "🔥", "🎉",
@@ -133,10 +147,37 @@ const ConversationView = ({
     "💪", "😍", "🤩", "😎", "🥳", "💔", "🤔", "😴"
   ];
 
+  // Emoji vẫn giữ nguyên: chèn vào ô nhập chữ
   const handleSelectEmoji = (emoji) => {
     const current = watch("content") || "";
     setValue("content", current + emoji);
     handleTyping();
+  };
+
+  // Sticker gửi thẳng luôn: gọi API và bay tin nhắn ngay lập tức
+  const handleSendDirectSticker = async (stickerUrl) => {
+    setShowStickerPicker(false);
+    if (!selectedConversation?._id) return;
+    await sendSticker({
+      conversationId: selectedConversation._id,
+      stickerUrl,
+      currentUser,
+      userName: currentUser.fullname,
+      members: selectedConversation.members,
+      onMessageEvent,
+    });
+  };
+
+  // Khi click vào 1 sticker đã gửi trong đoạn chat -> Mở kho sticker và nhảy đúng vào bộ sticker đó
+  const handleStickerClick = (stickerUrl) => {
+    const matchedPack =
+      useStickerStore.getState().findPackByStickerUrl(stickerUrl) ||
+      findPackByStickerUrl(stickerUrl);
+    if (matchedPack) {
+      setSelectedStickerPackId(matchedPack.packId || matchedPack.id || matchedPack._id);
+    }
+    setShowStickerPicker(true);
+    setShowEmojiPicker(false);
   };
 
   // Effect to load messages and set up socket listeners on conversation change
@@ -569,8 +610,17 @@ const ConversationView = ({
                       <div className="rounded-2xl px-3 py-2 text-sm bg-gray-100 text-gray-400 italic border border-gray-200">
                         Tin nhắn đã được thu hồi
                       </div>
+                    ) : item.type === 'sticker' ? (
+                      // 2. Trường hợp là STICKER: Không viền nền, ảnh trong suốt to đẹp, bấm vào mở bộ sticker đó
+                      <img
+                        src={getImageUrl(item.image, "")}
+                        alt="sticker"
+                        onClick={() => handleStickerClick(item.image)}
+                        title="Bấm để mở bộ sticker này"
+                        className="w-[130px] h-[130px] sm:w-[145px] sm:h-[145px] object-contain select-none hover:scale-105 active:scale-95 transition-transform block drop-shadow-sm cursor-pointer"
+                      />
                     ) : item.type === 'image' ? (
-                      // 2. Trường hợp là ẢNH: Không có bg, không có padding, chỉ có border-radius riêng của ảnh
+                      // 3. Trường hợp là ẢNH: Không có bg, không có padding, chỉ có border-radius riêng của ảnh
                       <img
                         src={getImageUrl(item.image, "")}
                         alt="image"
@@ -578,7 +628,7 @@ const ConversationView = ({
                         onClick={() => setViewImage(getImageUrl(item.image, ""))}
                       />
                     ) : (
-                      // 3. Trường hợp tin nhắn VĂN BẢN: Có màu nền tương ứng theo người gửi
+                      // 4. Trường hợp tin nhắn VĂN BẢN: Có màu nền tương ứng theo người gửi
                       <div
                         className={`rounded-2xl px-3 py-2 text-sm ${isMe
                           ? 'rounded-tr-none bg-[#3b5bdb] text-white'
@@ -695,14 +745,30 @@ const ConversationView = ({
         {/* TOOLBAR (HÀNG 1) */}
         <div className="flex items-center gap-1 sm:gap-1.5 px-3 pt-2 pb-1 text-[#475569]">
           {/* 1. Sticker */}
-          <button
-            type="button"
-            onClick={() => setShowEmojiPicker((prev) => !prev)}
-            className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition"
-            title="Gửi sticker / biểu cảm"
-          >
-            <Sticker size={19} strokeWidth={1.8} />
-          </button>
+          <div className="relative" ref={stickerPickerRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowStickerPicker((prev) => !prev);
+                setShowEmojiPicker(false);
+              }}
+              className={`p-1.5 rounded transition cursor-pointer ${
+                showStickerPicker
+                  ? "text-[#0068ff] bg-blue-50"
+                  : "text-gray-600 hover:text-[#0068ff] hover:bg-gray-100"
+              }`}
+              title="Gửi sticker trực tiếp"
+            >
+              <Sticker size={19} strokeWidth={1.8} />
+            </button>
+
+            <StickerPicker
+              isOpen={showStickerPicker}
+              initialPackId={selectedStickerPackId}
+              onClose={() => setShowStickerPicker(false)}
+              onSelectSticker={handleSendDirectSticker}
+            />
+          </div>
 
           {/* 2. Gửi ảnh */}
           <label
@@ -821,8 +887,15 @@ const ConversationView = ({
             {/* Nút Emoji */}
             <button
               type="button"
-              onClick={() => setShowEmojiPicker((prev) => !prev)}
-              className="p-1.5 text-gray-500 hover:text-[#0068ff] hover:bg-gray-100 rounded-full transition"
+              onClick={() => {
+                setShowEmojiPicker((prev) => !prev);
+                setShowStickerPicker(false);
+              }}
+              className={`p-1.5 rounded-full transition cursor-pointer ${
+                showEmojiPicker
+                  ? "text-[#0068ff] bg-blue-50"
+                  : "text-gray-500 hover:text-[#0068ff] hover:bg-gray-100"
+              }`}
               title="Biểu cảm"
             >
               <Smile size={21} strokeWidth={1.8} />
