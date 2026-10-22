@@ -1,12 +1,13 @@
 import user from '@/service/user';
 import React, { useEffect, useRef, useState } from 'react';
-import { useOutletContext, Link } from "react-router-dom"; // Thêm Link nếu cần dùng
+import { useOutletContext, Link, useNavigate } from "react-router-dom"; // Thêm Link nếu cần dùng
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, X, User, UserCheck, Mail, ChevronDown, ChevronUp } from 'lucide-react'; // Thêm các icon cần thiết
+import { AlertTriangle, X, User, UserCheck, Mail, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react'; // Thêm các icon cần thiết
 import Modal from '@/components/Modal';
 import ProfileFriend from '../profile/ProfileFriend';
 import useFriendStore from '@/stores/useFriendStore';
 import { getImageUrl } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const PendingRequest = () => {
   const { openFriendSidebar, isNarrowScreen: isNarrowFromLayout } = useOutletContext() ?? {};
@@ -54,13 +55,23 @@ const PendingRequest = () => {
     }
   }, [fetchRequests, sentRequests.length, receivedRequests.length]);
 
+  const navigate = useNavigate();
+
   // --- CÁC HÀM XỬ LÝ CHỨC NĂNG ---
   const executeCancelRequest = async (idRequest) => {
     await cancelFriendRequest(idRequest);
   };
 
   const executeAcceptRequest = async (idRequest) => {
-    await acceptFriendRequest(idRequest);
+    const result = await acceptFriendRequest(idRequest);
+    if (result?.success) {
+      toast.success("Đã kết bạn thành công! Cuộc trò chuyện đã được tạo.", {
+        action: {
+          label: "Nhắn tin ngay",
+          onClick: () => navigate("/"),
+        },
+      });
+    }
   };
 
   const executeDeclineRequest = async (idRequest) => {

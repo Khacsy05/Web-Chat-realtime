@@ -1,6 +1,8 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
 import Notification from "../models/Notification.js";
+import Conversation from "../models/Conversation.js";
+import Message from "../models/Message.js";
 import { io } from "../server.js";
 import { onlineUsers } from "../config/socketStore.js";
 import mongoose from "mongoose";
@@ -241,26 +243,89 @@ export const acceptRequest = async (req, res) => {
             relatedId: user._id
         });
 
-        const socketId = onlineUsers.get(request.from.toString());
-        if (socketId) {
-            io.to(socketId).emit("accept_friend", {
+        // 3. Tự động tạo hoặc mở cuộc trò chuyện 1-1 giống Zalo
+        const participantKey = [user._id, request.from]
+            .map((id) => String(id))
+            .sort()
+            .join(":");
+
+        let conversation = await Conversation.findOne({
+            participantKey,
+            isGroup: false,
+        });
+
+        const initialContent = "Các bạn đã trở thành bạn bè. Hãy gửi lời chào đến nhau nào!";
+
+        if (!conversation) {
+            conversation = await Conversation.create({
+                members: [user._id, request.from],
+                participantKey,
+                isGroup: false,
+                lastMessage: initialContent,
+                lastMessageAt: new Date(),
+                lastSenderId: user._id,
+            });
+        } else {
+            conversation.lastMessage = initialContent;
+            conversation.lastMessageAt = new Date();
+            conversation.lastSenderId = user._id;
+            // Bỏ user khỏi danh sách clearedBy nếu trước đây từng xóa đoạn chat
+            if (conversation.clearedBy && conversation.clearedBy.length > 0) {
+                conversation.clearedBy = conversation.clearedBy.filter(
+                    (id) => String(id) !== String(user._id) && String(id) !== String(request.from)
+                );
+            }
+            await conversation.save();
+        }
+
+        // Tạo tin nhắn hệ thống chào mừng trong đoạn chat
+        const welcomeMessage = await Message.create({
+            conversationId: conversation._id,
+            sender: user._id,
+            content: initialContent,
+            type: "system",
+        });
+
+        conversation.lastMessageId = welcomeMessage._id;
+        await conversation.save();
+
+        const populatedConversation = await Conversation.findById(conversation._id).populate(
+            "members",
+            "fullname avatar isActive lastActive"
+        );
+
+        // Gửi socket thông báo kết bạn và cập nhật danh sách hội thoại cho cả 2 bên
+        const socketIdFrom = onlineUsers.get(request.from.toString());
+        if (socketIdFrom) {
+            io.to(socketIdFrom).emit("accept_friend", {
                 requestId: request._id,
                 from: {
                     _id: user._id,
                     fullname: user.fullname,
-                    avatar: user.avatar
+                    avatar: user.avatar,
                 },
-                message: `${user.fullname} đã chấp nhận lời mời kết bạn`
+                message: `${user.fullname} đã chấp nhận lời mời kết bạn`,
+                conversation: populatedConversation,
             });
+            // Bắn event conversation-added để danh sách chat của người gửi kết bạn tự động thêm cuộc trò chuyện
+            io.to(socketIdFrom).emit("conversation-added", populatedConversation);
         }
 
-        res.json({ message: "Đã chấp nhận kết bạn" });
+        // Gửi cho chính người vừa bấm chấp nhận (để đồng bộ nếu mở nhiều tab)
+        const socketIdTo = onlineUsers.get(user._id.toString());
+        if (socketIdTo) {
+            io.to(socketIdTo).emit("conversation-added", populatedConversation);
+        }
+
+        res.json({
+            message: "Đã chấp nhận kết bạn",
+            conversation: populatedConversation,
+        });
     } catch (error) {
         console.error("Loi khi goi acceptFriend", error);
-        res.status(500).json({ message: "Loi he thong" })
-
+        res.status(500).json({ message: "Loi he thong" });
     }
-}
+};
 
 export const rejectRequest = async (req, res) => {
     try {
