@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 import useMessStore from '@/stores/useMessStore';
 import { getImageUrl } from '@/lib/utils';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMembers, onOpenMediaArchive, archiveItems }) => {
+const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack, onOpenMembers, onOpenMediaArchive, archiveItems }) => {
   const currentUser = useAuthStore((state) => state.user);
   const conversations = useChatStore((state) => state.conversations);
   const updateConversationPin = useChatStore((state) => state.updateConversationPin);
@@ -44,7 +44,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
     description: "",
     onConfirm: () => { },
   });
-
+  const [openTransferModal, setOpenTransferModal] = useState(false);
+  const [selectedNewAdmin, setSelectedNewAdmin] = useState(null);
 
   // 🌟 State Accordion riêng cho giao diện Nhóm (Group) giống trong ảnh
   const [isOpenMembers, setIsOpenMembers] = useState(true);
@@ -57,7 +58,10 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
   const otherMember = members.find(
     (member) => String(member._id) !== String(currentUser?.idUser)
   ) || members[0];
-  const userId = currentUser?.idUser;
+  const userId = currentUser?.idUser || currentUser?._id;
+  const adminId = selectedConversation?.adminGroup?._id || selectedConversation?.adminGroup;
+  const adminIdStr = String(adminId || "");
+  const isCurrentUserAdmin = Boolean(userId && adminIdStr && String(userId) === adminIdStr);
   const displayName = isGroup
     ? (selectedConversation?.nameGroup || "Nhóm trò chuyện")
     : (otherMember?.fullname || 'Người dùng');
@@ -88,16 +92,18 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
     }
   };
 
-  const handleRemoveMember = async (memberId) => {
+  const handleRemoveMember = async (memberId, newAdminId = null) => {
     try {
-      const response = await conversation.removeMember(selectedConversation._id, memberId);
+      await conversation.removeMember(selectedConversation._id, memberId, newAdminId);
+      toast.success("Rời nhóm thành công");
       if (onSelectConversation) onSelectConversation(null);
-
+      if (onMobileBack) onMobileBack();
     } catch (error) {
       console.error("Lỗi khi roi nhom:", error);
+      const msg = error?.response?.data?.message || "Lỗi khi rời nhóm";
+      toast.error(msg);
     }
   };
-
 
   const openConfirmDialog = (type, memberId) => {
     let config = {
@@ -110,14 +116,26 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
     if (type === 'deleteConversation') {
       config.title = "Xác nhận";
       config.description = `Toàn bộ tin nhắn sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa?`;
-      // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
       config.onConfirm = () => handleDeleteConversation();
     }
     else if (type === 'removeMember') {
-      config.title = "Xác nhận rời nhóm";
-      config.description = `Bạn sẽ không thể xem lại tin nhắn sau khi rời`;
-      // 🌟 Sửa lỗi: Gọi đúng hàm xóa/hủy request và truyền đủ tham số
-      config.onConfirm = () => handleRemoveMember(memberId);
+      if (isCurrentUserAdmin) {
+        if (members.length > 1) {
+          config.title = "Rời nhóm";
+          config.description = "Bạn là trưởng nhóm. Bạn cần chỉ định trưởng nhóm mới trước khi rời nhóm.";
+          config.onConfirm = () => {
+            setOpenTransferModal(true);
+          };
+        } else {
+          config.title = "Giải tán nhóm";
+          config.description = "Bạn là thành viên duy nhất. Rời khỏi nhóm đồng nghĩa với việc giải tán và xóa nhóm này hoàn toàn?";
+          config.onConfirm = () => handleRemoveMember(memberId);
+        }
+      } else {
+        config.title = "Xác nhận rời nhóm";
+        config.description = `Bạn sẽ không thể xem lại tin nhắn sau khi rời nhóm này.`;
+        config.onConfirm = () => handleRemoveMember(memberId);
+      }
     }
 
     setConfirmModal(config);
@@ -550,6 +568,101 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onOpenMember
         </div>,
         document.body
       )}
+
+      {/* Modal chọn trưởng nhóm mới trước khi rời nhóm */}
+      {openTransferModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => {
+              setOpenTransferModal(false);
+              setSelectedNewAdmin(null);
+            }}
+          />
+          <div className="relative w-full max-w-sm transform overflow-hidden rounded-xl bg-white p-6 shadow-xl border border-gray-100 scale-in-center">
+            <button
+              type="button"
+              onClick={() => {
+                setOpenTransferModal(false);
+                setSelectedNewAdmin(null);
+              }}
+              className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            >
+              <X size={18} strokeWidth={2.5} />
+            </button>
+
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Chọn trưởng nhóm mới</h3>
+            <p className="text-sm text-gray-500 mb-4 leading-relaxed">
+              Bạn cần chỉ định một thành viên làm trưởng nhóm mới trước khi bạn rời nhóm.
+            </p>
+
+            <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+              {members
+                .filter((m) => String(m._id) !== adminIdStr)
+                .map((m) => {
+                  const isSelected = String(selectedNewAdmin) === String(m._id);
+                  return (
+                    <div
+                      key={m._id}
+                      onClick={() => setSelectedNewAdmin(m._id)}
+                      className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors border ${
+                        isSelected
+                          ? "bg-blue-50/70 border-blue-200"
+                          : "hover:bg-gray-50 border-transparent"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        checked={isSelected}
+                        onChange={() => setSelectedNewAdmin(m._id)}
+                        className="w-4 h-4 text-[#0052cc] accent-[#0052cc]"
+                      />
+                      <img
+                        src={getImageUrl(m.avatar)}
+                        className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                        alt={m.fullname}
+                      />
+                      <span className="text-sm font-medium text-gray-800 flex-1 truncate">
+                        {m.fullname}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="h-9 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                onClick={() => {
+                  setOpenTransferModal(false);
+                  setSelectedNewAdmin(null);
+                }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={!selectedNewAdmin}
+                className={`h-9 rounded-lg px-4 text-sm font-medium text-white transition ${
+                  selectedNewAdmin
+                    ? "bg-[#0052cc] hover:bg-[#0047b3] shadow-sm cursor-pointer"
+                    : "bg-gray-300 cursor-not-allowed"
+                }`}
+                onClick={async () => {
+                  await handleRemoveMember(userId, selectedNewAdmin);
+                  setOpenTransferModal(false);
+                  setSelectedNewAdmin(null);
+                }}
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {openAddMembers && (
         <AddMembersModal
           conversations={selectedConversation}

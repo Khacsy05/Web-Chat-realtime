@@ -50,7 +50,12 @@ const GroupMembersPanel = ({ conversations, onBack }) => {
                 memberId,
                 newAdminId
             );
-            toast.success("Thao tác thành công");
+            if (String(memberId) === String(currentUserId)) {
+                toast.success("Rời nhóm thành công");
+                if (onBack) onBack();
+            } else {
+                toast.success("Đã xóa thành viên khỏi nhóm");
+            }
         } catch (error) {
             console.error(error);
             const msg = error?.response?.data?.message || "Thao tác thất bại";

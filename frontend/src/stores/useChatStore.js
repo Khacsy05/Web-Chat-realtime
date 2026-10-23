@@ -64,14 +64,16 @@ const useChatStore = create((set, get) => ({
 
   /* ================= CREATE GROUP ================= */
   onCreateGroup: (conversation) => {
-    set((state) => ({
-      conversations: [
+    set((state) => {
+      const merged = [
         conversation,
         ...state.conversations.filter(
           (c) => String(c._id) !== String(conversation._id)
         ),
-      ],
-    }));
+      ];
+      const currentUserId = useAuthStore.getState().user?.idUser;
+      return { conversations: sortConversations(merged, currentUserId) };
+    });
   },
 
   /* ================= ADD MEMBER ================= */
@@ -87,14 +89,16 @@ const useChatStore = create((set, get) => ({
 
   /* ================= NEW GROUP FOR USER ================= */
   onConversationAdded: (conversation) => {
-    set((state) => ({
-      conversations: [
+    set((state) => {
+      const merged = [
         conversation,
         ...state.conversations.filter(
           (c) => String(c._id) !== String(conversation._id)
         ),
-      ],
-    }));
+      ];
+      const currentUserId = useAuthStore.getState().user?.idUser;
+      return { conversations: sortConversations(merged, currentUserId) };
+    });
   },
 
   /* ================= REMOVE MEMBER ================= */

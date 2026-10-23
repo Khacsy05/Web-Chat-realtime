@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   MessageSquare,
@@ -8,6 +8,7 @@ import {
   User,
   KeyRound,
   LogOut,
+  Bell,
 } from "lucide-react";
 import useAuthStore from "@/stores/useAuthStore";
 import useMessStore from "@/stores/useMessStore";
@@ -19,6 +20,7 @@ import Modal from "@/components/Modal";
 import Profile from "@/pages/user/profile/profile";
 import ChangePasswordModal from "@/pages/user/profile/ChangePasswordModal";
 import { getImageUrl } from "@/lib/utils";
+import NotificationDropdown from "./NotificationDropdown";
 
 export function Sidebar({ onNavigate }) {
   const [dropOpen, setDropOpen] = useState(false);
@@ -26,6 +28,9 @@ export function Sidebar({ onNavigate }) {
   const [changePassOpen, setChangePassOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifTop, setNotifTop] = useState(0);
+  const bellRef = useRef(null);
 
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -34,6 +39,24 @@ export function Sidebar({ onNavigate }) {
   const setConversations = useChatStore((s) => s.setConversations);
   const clearFriends = useFriendStore((s) => s.clearFriends);
   const clearAllNotifications = useNotificationStore((s) => s.clearAll);
+  const notifications = useNotificationStore((s) => s.notifications);
+  const conversations = useChatStore((s) => s.conversations);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  // Tính số hội thoại chưa đọc (cùng logic với UserCardChat)
+  const unreadConvCount = conversations.filter((conv) => {
+    if (!conv.lastMessage) return false;
+    if (String(conv.lastSenderId) === String(user?.idUser)) return false;
+    const myStatus = conv.membersReadStatus?.find(
+      (s) => String(s.userId) === String(user?.idUser)
+    );
+    if (!myStatus) return true;
+    if (conv.lastMessageId && myStatus.lastSeenMessageId) {
+      return String(myStatus.lastSeenMessageId) !== String(conv.lastMessageId);
+    }
+    return new Date(myStatus.seenAt).getTime() < new Date(conv.lastMessageAt || conv.updatedAt).getTime();
+  }).length;
 
   const handleLogout = () => {
     clearAuth();
@@ -43,6 +66,7 @@ export function Sidebar({ onNavigate }) {
     clearAllNotifications();
     socket.disconnect();
     setDropOpen(false);
+    setNotifOpen(false);
     navigate("/login");
   };
 
@@ -55,6 +79,7 @@ export function Sidebar({ onNavigate }) {
     const handleGlobalClick = () => {
       setDropOpen(false);
       setShowSettings(false);
+      setNotifOpen(false);
     };
 
     window.addEventListener("click", handleGlobalClick);
@@ -165,21 +190,30 @@ export function Sidebar({ onNavigate }) {
           {/* Đường gạch phân cách nhẹ */}
           <div className="w-8 h-px bg-white/20 my-0.5" />
 
-          {/* ICON 1: TIN NHẮN (CHAT) */}
-          <NavLink
-            to="/user/dashboard"
-            onClick={() => onNavigate?.("chat")}
-            title="Tin nhắn"
-            className={({ isActive }) =>
-              `relative flex items-center justify-center size-12 rounded-2xl transition-all cursor-pointer ${
-                isActive
-                  ? "bg-white/20 text-white shadow-inner font-bold"
-                  : "text-white/80 hover:bg-white/10 hover:text-white"
-              }`
-            }
-          >
-            <MessageSquare size={24} className="stroke-[2.2]" />
-          </NavLink>
+          {/* ICON 1: TIN NHẮN (CHAT) kèm badge chưa đọc */}
+          <div className="relative">
+            <NavLink
+              to="/user/dashboard"
+              onClick={() => onNavigate?.("chat")}
+              title="Tin nhắn"
+              className={({ isActive }) =>
+                `relative flex items-center justify-center size-12 rounded-2xl transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-white/20 text-white shadow-inner font-bold"
+                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                }`
+              }
+            >
+              <MessageSquare size={24} className="stroke-[2.2]" />
+            </NavLink>
+
+            {/* Badge số hội thoại chưa đọc */}
+            {unreadConvCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-[#0052cc] shadow-sm pointer-events-none">
+                {unreadConvCount > 99 ? "99+" : unreadConvCount}
+              </span>
+            )}
+          </div>
 
           {/* ICON 2: DANH BẠ (BẠN BÈ) */}
           <NavLink
@@ -196,6 +230,40 @@ export function Sidebar({ onNavigate }) {
           >
             <Contact2 size={24} className="stroke-[2.2]" />
           </NavLink>
+
+          {/* ICON 3: THÔNG BÁO (CHUÔNG) KÈM DROPDOWN FACEBOOK */}
+          <div className="relative" ref={bellRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // Tính vị trí Y của bell button để dropdown fixed đúng chỗ
+                if (bellRef.current) {
+                  const rect = bellRef.current.getBoundingClientRect();
+                  // Clamp agar dropdown không tràn xuống dưới viewport
+                  const maxTop = window.innerHeight - 560;
+                  setNotifTop(Math.min(rect.top, Math.max(8, maxTop)));
+                }
+                setNotifOpen(!notifOpen);
+                setDropOpen(false);
+                setShowSettings(false);
+              }}
+              title="Thông báo"
+              className={`relative flex items-center justify-center size-12 rounded-2xl transition-all cursor-pointer ${
+                notifOpen
+                  ? "bg-white/25 text-white shadow-inner font-bold scale-105"
+                  : "text-white/80 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Bell size={24} className="stroke-[2.2]" />
+
+              {/* Badge số lượng thông báo chưa đọc */}
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-[#0052cc] shadow-sm animate-pulse">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* ================= 2. KHỐI DƯỚI CÙNG: CLOUD & CÀI ĐẶT ================= */}
@@ -275,6 +343,13 @@ export function Sidebar({ onNavigate }) {
           </div>
         </div>
       </nav>
+
+      {/* NOTIFICATION DROPDOWN — rendered outside nav to escape stacking context */}
+      <NotificationDropdown
+        isOpen={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        topOffset={notifTop}
+      />
 
       {/* MODAL THÔNG TIN TÀI KHOẢN */}
       {profileOpen && (

@@ -33,6 +33,25 @@ export const markAllAsRead = async (req, res) => {
   }
 };
 
+export const markOneAsRead = async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user._id });
+    if (!user) {
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+    }
+
+    const { id } = req.params;
+    await Notification.findOneAndUpdate(
+      { _id: id, recipient: user._id },
+      { isRead: true }
+    );
+
+    return res.status(200).json({ success: true, message: "Đã đánh dấu đã đọc" });
+  } catch (error) {
+    return res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+};
+
 export const clearAllNotifications = async (req, res) => {
   try {
     const user = await User.findOne({ userId: req.user._id });
@@ -47,3 +66,20 @@ export const clearAllNotifications = async (req, res) => {
     return res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 };
+
+export const deleteNotificationById = async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user._id });
+    if (!user) {
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+    }
+
+    const { id } = req.params;
+    await Notification.findOneAndDelete({ _id: id, recipient: user._id });
+
+    return res.status(200).json({ success: true, message: "Đã xóa thông báo" });
+  } catch (error) {
+    return res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+};
+

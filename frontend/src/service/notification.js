@@ -26,7 +26,25 @@ const notificationService = {
     } catch (error) {
       throw error.response || { message: "Lỗi khi xóa thông báo" };
     }
-  }
+  },
+
+  markOneAsRead: async (id) => {
+    try {
+      const response = await api.put(`/notification/read/${id}`);
+      return response;
+    } catch (error) {
+      throw error.response || { message: "Lỗi khi đánh dấu đã đọc" };
+    }
+  },
+
+  deleteNotification: async (id) => {
+    try {
+      const response = await api.delete(`/notification/${id}`);
+      return response;
+    } catch (error) {
+      throw error.response || { message: "Lỗi khi xóa thông báo" };
+    }
+  },
 };
 
 export default notificationService;
