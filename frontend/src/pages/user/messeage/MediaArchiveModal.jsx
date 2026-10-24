@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { X, ChevronDown, Image, FileText, Link2 } from 'lucide-react';
+import { X, ChevronDown, Image, FileText, Link2, Download, ExternalLink } from 'lucide-react';
 import ImageViewer from '@/components/ImageViewer';
-import { getImageUrl } from '@/lib/utils';
+import { getImageUrl, formatFileSize, getFileUrl, downloadFile, formatLinkUrl, containsLink, extractLinks } from '@/lib/utils';
+import FileViewerModal from '@/components/FileViewerModal';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems }) => {
-  const [activeTab, setActiveTab] = useState('media'); // 'media' | 'files' | 'links'
+const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems = [], initialTab = 'media' }) => {
+  const [activeTab, setActiveTab] = useState(initialTab || 'media'); // 'media' | 'files' | 'links'
   const [viewingImg, setViewingImg] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   // Lấy toàn bộ tin nhắn thực tế từ store
   // Lọc dữ liệu theo từng Tab
   const mediaItems = archiveItems.filter(m => m.type === 'image' && !m.isDeleted);
   const fileItems = archiveItems.filter(m => m.type === 'file' && !m.isDeleted);
-  const linkItems = archiveItems.filter(m => m.type === 'text' && m.content?.includes('http') && !m.isDeleted);
+  const linkItems = archiveItems.filter(m => m.type === 'text' && containsLink(m.content) && !m.isDeleted);
   // Hàm nhóm các vật phẩm theo ngày gửi (Giống "Ngày 17 Tháng 6" trong ảnh)
   const groupItemsByDate = (items) => {
     const groups = {};
@@ -133,17 +141,55 @@ const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems })
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {fileItems.map((item) => (
-                      <div key={item.messageId || item._id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
-                        <div className="p-2 bg-red-50 text-red-500 rounded-md">
-                          <FileText size={20} />
+                    {fileItems.map((item) => {
+                      const rawUrl = item.fileUrl || item.image || item.content;
+                      const fileTargetUrl = getFileUrl(rawUrl);
+                      const fileName = item.fileName || (typeof item.content === 'string' && item.content.includes('.') ? item.content : "Tài liệu đính kèm");
+
+                      return (
+                        <div
+                          key={item.messageId || item._id}
+                          onClick={() => setPreviewFile({ url: fileTargetUrl, name: fileName })}
+                          className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
+                          title="Bấm để mở xem trước tập tin"
+                        >
+                          <div className="p-2 bg-blue-50 text-[#0068ff] rounded-md shrink-0">
+                            <FileText size={20} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-medium text-gray-800 truncate group-hover:text-blue-600 transition-colors" title={fileName}>
+                              {fileName}
+                            </p>
+                            <span className="text-[11px] text-gray-400">
+                              {item.fileSize ? formatFileSize(item.fileSize) : "File tài liệu"}
+                            </span>
+                          </div>
+                          {fileTargetUrl && (
+                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewFile({ url: fileTargetUrl, name: fileName })}
+                                className="p-1.5 text-gray-400 hover:text-[#0068ff] hover:bg-gray-100 rounded transition cursor-pointer"
+                                title="Xem trước tập tin"
+                              >
+                                <ExternalLink size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  downloadFile(fileTargetUrl, fileName);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-[#0068ff] hover:bg-gray-100 rounded transition cursor-pointer"
+                                title="Tải về máy"
+                              >
+                                <Download size={16} />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-medium text-gray-800 truncate">{item.content || "Tài liệu đính kèm"}</p>
-                          <span className="text-[11px] text-gray-400">File tài liệu</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )
               )}
@@ -157,18 +203,33 @@ const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems })
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {linkItems.map((item) => (
-                      <a
-                        key={item.messageId || item._id}
-                        href={item.content}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 bg-blue-50/40 rounded-lg border border-blue-150/40 hover:bg-blue-50 block min-w-0"
-                      >
-                        <p className="text-[13px] text-blue-600 font-medium truncate mb-1">{item.content}</p>
-                        <span className="text-[11px] text-gray-400">Liên kết được chia sẻ</span>
-                      </a>
-                    ))}
+                    {linkItems.map((item) => {
+                      const links = extractLinks(item.content);
+                      const displayLink = links[0] || item.content;
+                      const targetUrl = formatLinkUrl(displayLink);
+
+                      return (
+                        <a
+                          key={item.messageId || item._id}
+                          href={targetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-3 bg-blue-50/40 rounded-lg border border-blue-150/40 hover:bg-blue-50 block min-w-0 group transition-colors"
+                          title={`Mở trang: ${targetUrl}`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Link2 size={16} className="text-[#0068ff] shrink-0" />
+                            <p className="text-[13px] text-[#0068ff] font-medium truncate group-hover:underline">
+                              {displayLink}
+                            </p>
+                            <ExternalLink size={13} className="text-gray-400 group-hover:text-[#0068ff] shrink-0 ml-auto" />
+                          </div>
+                          <span className="text-[11px] text-gray-400">
+                            {item.createdAt ? `Chia sẻ ngày ${new Date(item.createdAt).toLocaleDateString("vi-VN")}` : "Liên kết được chia sẻ"}
+                          </span>
+                        </a>
+                      );
+                    })}
                   </div>
                 )
               )}
@@ -181,6 +242,14 @@ const MediaArchiveModal = ({ conversationId, onClose, isLoading, archiveItems })
       {/* POPUP PHÓNG TO ẢNH KHI CLICK VÀO HÌNH THU NHỎ */}
       {viewingImg && (
         <ImageViewer src={viewingImg} onClose={() => setViewingImg(null)} />
+      )}
+
+      {/* MODAL XEM TRƯỚC TẬP TIN KIỂU ZALO */}
+      {previewFile && (
+        <FileViewerModal
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
       )}
     </div>
   );

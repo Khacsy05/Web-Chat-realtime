@@ -6,6 +6,11 @@ import {
   ChevronDown,
   Contact,
   CreditCard,
+  Download,
+  ExternalLink,
+  Eye,
+  Check,
+  FileText,
   Image as ImageIcon,
   MessageSquare,
   MoreHorizontal,
@@ -16,9 +21,11 @@ import {
   Smile,
   Sticker,
   ThumbsUp,
+  X,
   Zap,
 } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from 'react-hook-form';
@@ -30,7 +37,8 @@ import ImageViewer from '@/components/ImageViewer';
 import StickerPicker from './StickerPicker';
 import { findPackByStickerUrl } from '@/constants/stickers';
 import useStickerStore from '@/stores/useStickerStore';
-import { getImageUrl } from '@/lib/utils';
+import { getImageUrl, formatFileSize, getFileUrl, downloadFile, isFileDownloaded, getPreviewUrl, formatLinkUrl } from '@/lib/utils';
+import FileViewerModal from '@/components/FileViewerModal';
 
 const messSchema = yup.object().shape({
   content: yup.string().required("vui long nhap noi dung"),
@@ -66,6 +74,7 @@ const ConversationView = ({
     revokeMessage,
     deleteMessageForMe,
     sendImage,
+    sendFile,
     sendSticker,
     sendTyping,
     setupSocketListeners,
@@ -85,6 +94,8 @@ const ConversationView = ({
   const LIKE_EMOJI = "👍";
   const [openProfile, setOpenProfile] = useState(null);
   const [viewImage, setViewImage] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null); // { url, name }
+  const [downloadTick, setDownloadTick] = useState(0); // Dùng để re-render khi tải file xong
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MD_PX - 1}px)`);
@@ -333,6 +344,32 @@ const ConversationView = ({
     const success = await sendImage({
       conversationId: selectedConversation?._id,
       image: file,
+      currentUser,
+      userName: thisMember?.fullname,
+      members: selectedConversation?.members,
+      onMessageEvent
+    });
+    if (success) {
+      shouldScrollToBottomRef.current = true;
+      e.target.value = "";
+    }
+  };
+
+  const handleSendFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Giới hạn 10MB
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error("File quá lớn! Chỉ cho phép gửi file nhẹ tối đa 10MB.");
+      e.target.value = "";
+      return;
+    }
+
+    const success = await sendFile({
+      conversationId: selectedConversation?._id,
+      file,
       currentUser,
       userName: thisMember?.fullname,
       members: selectedConversation?.members,
@@ -627,15 +664,147 @@ const ConversationView = ({
                         className="w-[200px] h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-90 transition shadow-sm block"
                         onClick={() => setViewImage(getImageUrl(item.image, ""))}
                       />
+                    ) : item.type === 'file' ? (
+                      // 4. Trường hợp là TẬP TIN (FILE) - Phong cách Zalo: click vào là mở xem, lưu trạng thái đã tải
+                      (() => {
+                        const fileKey = item.messageId || item.fileUrl || item.image;
+                        const isDownloaded = isFileDownloaded(fileKey) || isFileDownloaded(item.fileUrl || item.image);
+                        const fileTargetUrl = getFileUrl(item.fileUrl || item.image);
+                        const fileName = item.fileName || item.content || "Tập tin đính kèm";
+
+                        const handleFileClick = (e) => {
+                          e.stopPropagation();
+                          // Mở modal xem trước file ngay lập tức
+                          setPreviewFile({
+                            url: fileTargetUrl,
+                            name: fileName
+                          });
+
+                          // Nếu chưa từng tải thì tự động tải về máy luôn
+                          if (!isDownloaded) {
+                            downloadFile(fileTargetUrl, fileName, fileKey);
+                            setDownloadTick(prev => prev + 1);
+                          }
+                        };
+
+                        return (
+                          <div
+                            onClick={handleFileClick}
+                            className={`rounded-2xl p-3 border shadow-sm max-w-[280px] sm:max-w-[340px] cursor-pointer transition-all hover:opacity-95 ${
+                              isMe
+                                ? 'rounded-tr-none bg-[#3b5bdb] text-white border-blue-600 hover:bg-[#3451c7]'
+                                : 'rounded-tl-none bg-white text-[#1f2328] border-gray-200 hover:bg-gray-50'
+                            }`}
+                            title={isDownloaded ? "Bấm để mở xem tập tin" : "Bấm để tải về và mở"}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`flex size-11 shrink-0 items-center justify-center rounded-xl relative ${
+                                  isMe ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#0068ff]'
+                                }`}
+                              >
+                                <FileText size={24} />
+                                {isDownloaded && (
+                                  <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm ring-1 ring-white" title="Đã tải về máy">
+                                    <Check size={10} strokeWidth={3} />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div
+                                  className="font-semibold text-sm truncate"
+                                  title={fileName}
+                                >
+                                  {fileName}
+                                </div>
+                                <div
+                                  className={`text-[11px] mt-0.5 flex items-center gap-1.5 ${
+                                    isMe ? 'text-white/80' : 'text-gray-400'
+                                  }`}
+                                >
+                                  <span>{item.fileSize ? formatFileSize(item.fileSize) : "Tệp tin"}</span>
+                                  <span>•</span>
+                                  <span>{isDownloaded ? "Đã lưu • Mở xem" : "Chưa tải về"}</span>
+                                </div>
+                              </div>
+                              {fileTargetUrl && (
+                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  {isDownloaded ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewFile({ url: fileTargetUrl, name: fileName })}
+                                      className={`flex size-8 items-center justify-center rounded-full transition-colors cursor-pointer ${
+                                        isMe
+                                          ? 'bg-white/20 hover:bg-white/30 text-white'
+                                          : 'bg-blue-50 hover:bg-blue-100 text-[#0068ff]'
+                                      }`}
+                                      title="Xem tập tin"
+                                    >
+                                      <Eye size={15} />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        toast.info(`Đang tải tập tin: ${fileName}...`);
+                                        await downloadFile(fileTargetUrl, fileName, fileKey);
+                                        setDownloadTick(prev => prev + 1);
+                                      }}
+                                      className={`flex size-8 items-center justify-center rounded-full transition-colors cursor-pointer ${
+                                        isMe
+                                          ? 'bg-white/20 hover:bg-white/30 text-white'
+                                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                      }`}
+                                      title="Tải về máy"
+                                    >
+                                      <Download size={15} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
-                      // 4. Trường hợp tin nhắn VĂN BẢN: Có màu nền tương ứng theo người gửi
+                      // 5. Trường hợp tin nhắn VĂN BẢN: Tự động nhận diện đường Link và cho phép bấm mở trang web
                       <div
-                        className={`rounded-2xl px-3 py-2 text-sm ${isMe
+                        className={`rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap leading-relaxed ${isMe
                           ? 'rounded-tr-none bg-[#3b5bdb] text-white'
                           : 'rounded-tl-none bg-[#f1f3f5] text-[#1f2328]'
                           }`}
                       >
-                        {item.content}
+                        {(() => {
+                          const content = item.content || "";
+                          const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(?:com|vn|net|org|edu|io|co|me|info|dev)(?:\/[^\s]*)?)/gi;
+                          const parts = content.split(urlRegex);
+
+                          if (parts.length <= 1) {
+                            return content;
+                          }
+
+                          return parts.map((part, pIdx) => {
+                            if (urlRegex.test(part)) {
+                              urlRegex.lastIndex = 0;
+                              return (
+                                <a
+                                  key={pIdx}
+                                  href={formatLinkUrl(part)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className={`underline font-medium hover:opacity-85 transition-opacity ${
+                                    isMe ? 'text-white underline-offset-2' : 'text-[#0068ff] underline-offset-2'
+                                  }`}
+                                  title={`Mở liên kết: ${formatLinkUrl(part)}`}
+                                >
+                                  {part}
+                                </a>
+                              );
+                            }
+                            return part;
+                          });
+                        })()}
                       </div>
                     )}
                   </div>
@@ -787,13 +956,13 @@ const ConversationView = ({
           {/* 3. Đính kèm file */}
           <label
             className="p-1.5 text-gray-600 hover:text-[#0068ff] hover:bg-gray-100 rounded transition cursor-pointer"
-            title="Đính kèm tập tin"
+            title="Đính kèm tập tin (Tối đa 10MB)"
           >
             <Paperclip size={19} strokeWidth={1.8} />
             <input
               type="file"
               className="hidden"
-              onChange={handleSendImage}
+              onChange={handleSendFile}
             />
           </label>
 
@@ -943,6 +1112,14 @@ const ConversationView = ({
       )}
 
       <ImageViewer src={viewImage} onClose={() => setViewImage(null)} />
+
+      {/* MODAL XEM TRƯỚC TẬP TIN KIỂU ZALO (XEM TRỰC TIẾP KHÔNG CẦN TẢI LẠI) */}
+      {previewFile && (
+        <FileViewerModal
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
 
     </div>
   );

@@ -15,7 +15,7 @@ cloudinary.config({
  * @param {string} folder
  * @returns {Promise<object>}
  */
-export const uploadToCloudinary = (fileBuffer, folder = "chat_realtime") => {
+export const uploadToCloudinary = (fileBuffer, folder = "chat_realtime", options = {}) => {
   return new Promise((resolve, reject) => {
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY) {
       return reject(
@@ -28,7 +28,8 @@ export const uploadToCloudinary = (fileBuffer, folder = "chat_realtime") => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder,
-        resource_type: "auto",
+        resource_type: options.resource_type || "auto",
+        ...options,
       },
       (error, result) => {
         if (error) return reject(error);

@@ -203,6 +203,81 @@ const useMessStore = create((set, get) => ({
     }
   },
 
+  sendFile: async ({ conversationId, file, currentUser, userName, members, onMessageEvent }) => {
+    try {
+      if (!conversationId || !currentUser?.idUser) {
+        toast.error('Không tìm thấy cuộc trò chuyện để gửi tin nhắn');
+        return false;
+      }
+
+      if (!file) return false;
+
+      // Giới hạn file nhẹ: 10MB
+      const MAX_SIZE = 10 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        toast.error('File quá lớn! Vui lòng chỉ gửi file nhẹ dưới 10MB.');
+        return false;
+      }
+
+      const formData = new FormData();
+      formData.append('conversationId', conversationId);
+      formData.append('file', file);
+
+      if (!socket.connected) {
+        socket.connect();
+      }
+
+      const res = await messageService.sendFile(formData);
+      const data = res.data;
+
+      const newMsg = {
+        messageId: data._id,
+        senderId: currentUser.idUser,
+        name: userName || 'Người dùng',
+        content: data.content || file.name,
+        type: 'file',
+        fileUrl: data.fileUrl,
+        fileName: data.fileName || file.name,
+        fileSize: data.fileSize || file.size,
+        createdAt: data.createdAt || new Date().toISOString(),
+      };
+
+      set((state) => ({
+        mess: [...state.mess, newMsg],
+      }));
+
+      onMessageEvent?.({
+        conversationId: String(conversationId),
+        senderId: currentUser.idUser,
+        content: `[Tập tin] ${file.name}`,
+        type: 'file',
+        createdAt: new Date().toISOString(),
+      });
+
+      socket.emit('send-message', {
+        from: String(currentUser.idUser),
+        members: members || [],
+        text: `[Tập tin] ${file.name}`,
+        type: 'file',
+        fileUrl: data.fileUrl,
+        fileName: data.fileName || file.name,
+        fileSize: data.fileSize || file.size,
+        conversationId: String(conversationId),
+        messageId: String(data._id),
+        name: userName || 'Người dùng',
+        createdAt: data.createdAt,
+      });
+
+      toast.success('Đã gửi tập tin thành công');
+      return true;
+    } catch (error) {
+      console.error(error);
+      const msg = error?.response?.data?.message || error?.message || 'Gửi tập tin thất bại';
+      toast.error(msg);
+      return false;
+    }
+  },
+
   sendSticker: async ({ conversationId, stickerUrl, currentUser, userName, members, onMessageEvent }) => {
     try {
       if (!conversationId || !currentUser?.idUser) {
@@ -351,6 +426,9 @@ const useMessStore = create((set, get) => ({
           content: payload.text,
           type: payload.type || 'text',
           image: payload.image || null,
+          fileUrl: payload.fileUrl || null,
+          fileName: payload.fileName || null,
+          fileSize: payload.fileSize || null,
           createdAt: payload.createdAt || new Date().toISOString(),
         };
 

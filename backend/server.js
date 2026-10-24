@@ -99,7 +99,7 @@ io.on("connection", (socket) => {
   });
 
   // ================= MESSAGE =================
-  socket.on("send-message", ({ from, members, text, type, image, conversationId, messageId, name, createdAt }) => {
+  socket.on("send-message", ({ from, members, text, type, image, fileUrl, fileName, fileSize, conversationId, messageId, name, createdAt }) => {
     if (Array.isArray(members)) {
       members.forEach((member) => {
         const memberId = typeof member === 'object' ? String(member._id) : String(member);
@@ -112,6 +112,9 @@ io.on("connection", (socket) => {
               text,
               type,       // 👈 Gửi thêm type xuống cho client nhận
               image,      // 👈 Gửi thêm image xuống cho client nhận
+              fileUrl,    // 👈 URL file tải về
+              fileName,   // 👈 Tên file
+              fileSize,   // 👈 Dung lượng file
               conversationId,
               messageId,
               name,
