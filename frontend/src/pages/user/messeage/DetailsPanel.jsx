@@ -19,23 +19,35 @@ import {
   Users2,
   StickyNote,
   ChevronRight,
-  LogOut
+  LogOut,
+  FileText,
+  Download,
+  Eye,
+  ExternalLink,
+  Check,
+  Link2
 } from 'lucide-react';
 import conversation from '@/service/conversation';
 import AddMembersModal from './AddMembersModal';
 import PinLimitModal from './PinLimitModal';
 import { toast } from 'sonner';
 import useMessStore from '@/stores/useMessStore';
-import { getImageUrl } from '@/lib/utils';
+import { getImageUrl, formatFileSize, getFileUrl, downloadFile, isFileDownloaded, getPreviewUrl, formatLinkUrl, containsLink, extractLinks } from '@/lib/utils';
+import FileViewerModal from '@/components/FileViewerModal';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack, onOpenMembers, onOpenMediaArchive, archiveItems }) => {
+const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack, onOpenMembers, onOpenMediaArchive, archiveItems = [] }) => {
   const currentUser = useAuthStore((state) => state.user);
   const conversations = useChatStore((state) => state.conversations);
   const updateConversationPin = useChatStore((state) => state.updateConversationPin);
 
+  // Quản lý xem trước & tải file kiểu Zalo
+  const [previewFile, setPreviewFile] = useState(null);
+  const [downloadTick, setDownloadTick] = useState(0);
+
   // Trạng thái đóng/mở các mục thả xuống (Accordion)
   const [isOpenMedia, setIsOpenMedia] = useState(true);
   const [isOpenFiles, setIsOpenFiles] = useState(true);
+  const [isOpenLinks, setIsOpenLinks] = useState(true);
   const [openPinModal, setOpenPinModal] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
@@ -71,6 +83,12 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
     : getImageUrl(otherMember?.avatar);
   // Lọc lấy toàn bộ tin nhắn có type là 'image' và không bị thu hồi (isDeleted)
   const realMediaItems = archiveItems.filter(item => item.type === 'image' && !item.isDeleted).slice(0, 8);
+  // Lọc lấy toàn bộ tin nhắn có type là 'file' và không bị thu hồi (isDeleted)
+  const realFileItems = archiveItems.filter(item => item.type === 'file' && !item.isDeleted).slice(0, 8);
+  // Lọc lấy toàn bộ tin nhắn có chứa liên kết (Link) và không bị thu hồi
+  const realLinkItems = archiveItems
+    .filter(item => item.type === 'text' && containsLink(item.content) && !item.isDeleted)
+    .slice(0, 5);
   // Giả lập data danh sách ảnh/video gửi trong đoạn chat để render grid
   const mediaItems = [
     { id: 1, src: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150" },
@@ -291,11 +309,10 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
               className="flex flex-col items-center gap-1.5 text-center group cursor-pointer transition disabled:opacity-50"
             >
               <div
-                className={`flex size-9 items-center justify-center rounded-full transition-colors ${
-                  isPinned
-                    ? "bg-[#e8edff] text-[#0068ff]"
-                    : "bg-[#f1f3f5] text-[#1f2328] group-hover:bg-[#e2e6ea]"
-                }`}
+                className={`flex size-9 items-center justify-center rounded-full transition-colors ${isPinned
+                  ? "bg-[#e8edff] text-[#0068ff]"
+                  : "bg-[#f1f3f5] text-[#1f2328] group-hover:bg-[#e2e6ea]"
+                  }`}
               >
                 <Pin
                   size={18}
@@ -304,9 +321,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
                 />
               </div>
               <span
-                className={`text-[12px] font-medium leading-tight ${
-                  isPinned ? "text-[#0068ff] font-semibold" : "text-gray-600"
-                }`}
+                className={`text-[12px] font-medium leading-tight ${isPinned ? "text-[#0068ff] font-semibold" : "text-gray-600"
+                  }`}
               >
                 {isPinned ? "Bỏ ghim" : "Ghim hội thoại"}
               </span>
@@ -345,11 +361,10 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
               className="flex flex-col items-center gap-1.5 text-center group cursor-pointer transition disabled:opacity-50"
             >
               <div
-                className={`flex size-9 items-center justify-center rounded-full transition-colors ${
-                  isPinned
-                    ? "bg-[#e8edff] text-[#0068ff]"
-                    : "bg-[#f1f3f5] text-[#1f2328] group-hover:bg-[#e2e6ea]"
-                }`}
+                className={`flex size-9 items-center justify-center rounded-full transition-colors ${isPinned
+                  ? "bg-[#e8edff] text-[#0068ff]"
+                  : "bg-[#f1f3f5] text-[#1f2328] group-hover:bg-[#e2e6ea]"
+                  }`}
               >
                 <Pin
                   size={18}
@@ -358,9 +373,8 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
                 />
               </div>
               <span
-                className={`text-[12px] font-medium px-1 ${
-                  isPinned ? "text-[#0068ff] font-semibold" : "text-gray-600"
-                }`}
+                className={`text-[12px] font-medium px-1 ${isPinned ? "text-[#0068ff] font-semibold" : "text-gray-600"
+                  }`}
               >
                 {isPinned ? "Bỏ ghim" : "Ghim hội thoại"}
               </span>
@@ -482,22 +496,149 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
         </button>
 
         {isOpenFiles && (
-          <div className="px-4 flex flex-col gap-3 animate-fade-in">
-            <div className="flex items-start gap-3 cursor-pointer group p-1 rounded-md hover:bg-gray-50">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
-                <FileVideo size={22} fill="currentColor" className="text-purple-100 stroke-purple-600" />
+          <div className="px-4 flex flex-col gap-2.5 animate-fade-in">
+            {realFileItems.length === 0 ? (
+              <div className="py-3 text-center text-xs text-gray-400 italic">
+                Chưa có tập tin nào
               </div>
-              <div className="min-w-0 flex-1 text-[13px]">
-                <div className="truncate font-medium text-[#1f2328] pr-2">
-                  localhost_8080 _ mysql _ cap... 9-56.mp4
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5 text-gray-400 text-[11px]">
-                  <span>39.78 MB</span>
-                  <Info size={12} className="text-gray-400" />
-                  <span className="ml-auto text-gray-400 font-normal">26/03/2026</span>
-                </div>
+            ) : (
+              realFileItems.map((item) => {
+                const rawUrl = item.fileUrl || item.image || item.content;
+                const fileTargetUrl = getFileUrl(rawUrl);
+                const fileName = item.fileName || (typeof item.content === 'string' && item.content.includes('.') ? item.content : 'Tập tin');
+                const fileIdentifier = item._id || item.messageId || rawUrl;
+                const isDownloaded = isFileDownloaded(fileIdentifier) || isFileDownloaded(rawUrl);
+
+                const handleItemClick = (e) => {
+                  e.stopPropagation();
+                  if (isDownloaded) {
+                    setPreviewFile({ url: fileTargetUrl, name: fileName });
+                  } else {
+                    downloadFile(fileTargetUrl, fileName, fileIdentifier);
+                    setDownloadTick((prev) => prev + 1);
+                    setPreviewFile({ url: fileTargetUrl, name: fileName });
+                  }
+                };
+
+                return (
+                  <div
+                    key={item.messageId || item._id}
+                    onClick={handleItemClick}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 group transition-colors cursor-pointer border border-transparent hover:border-gray-200"
+                    title={isDownloaded ? "Bấm để mở xem tập tin" : "Bấm để tải về và xem trước"}
+                  >
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0068ff] relative">
+                      <FileText size={20} />
+                      {isDownloaded && (
+                        <span className="absolute -bottom-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm ring-1 ring-white" title="Đã lưu">
+                          <Check size={8} strokeWidth={3} />
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 text-[13px]">
+                      <div
+                        className="truncate font-medium text-[#1f2328]"
+                        title={fileName}
+                      >
+                        {fileName}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-gray-400 text-[11px]">
+                        <span>{item.fileSize ? formatFileSize(item.fileSize) : "Tệp tin"}</span>
+                        <span>•</span>
+                        <span className={isDownloaded ? "text-emerald-600 font-medium" : ""}>
+                          {isDownloaded ? "Đã lưu" : "Chưa tải"}
+                        </span>
+                      </div>
+                    </div>
+                    {fileTargetUrl && (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            downloadFile(fileTargetUrl, fileName, fileIdentifier);
+                            setDownloadTick((prev) => prev + 1);
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-[#0068ff] hover:bg-gray-200/60 rounded-md transition cursor-pointer"
+                          title="Tải lại file về máy"
+                        >
+                          <Download size={15} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+            {realFileItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onOpenMediaArchive?.('files')}
+                className="mt-1 flex h-9 w-full items-center justify-center rounded-md bg-[#f1f3f5] text-[14px] font-semibold text-[#1f2328] hover:bg-[#e2e6ea] transition-colors cursor-pointer"
+              >
+                Xem tất cả
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Mục Link liên kết (Dùng chung) */}
+      <div className="flex flex-col pb-4 border-t border-gray-100">
+        <button
+          onClick={() => setIsOpenLinks(!isOpenLinks)}
+          className="flex items-center justify-between px-4 py-3.5 text-left font-semibold text-[15px] text-[#1f2328] hover:bg-gray-50"
+        >
+          <span>Link</span>
+          {isOpenLinks ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+        </button>
+
+        {isOpenLinks && (
+          <div className="px-4 flex flex-col gap-2 animate-fade-in">
+            {realLinkItems.length === 0 ? (
+              <div className="py-3 text-center text-xs text-gray-400 italic">
+                Chưa có liên kết nào
               </div>
-            </div>
+            ) : (
+              realLinkItems.map((item) => {
+                const links = extractLinks(item.content);
+                const firstLink = links[0] || item.content;
+                const fullUrl = formatLinkUrl(firstLink);
+
+                return (
+                  <a
+                    key={item.messageId || item._id}
+                    href={fullUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50/50 group transition-colors border border-gray-100 hover:border-blue-200"
+                    title={`Mở trang: ${fullUrl}`}
+                  >
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0068ff]">
+                      <Link2 size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1 text-[13px]">
+                      <div className="truncate font-medium text-blue-600 group-hover:underline">
+                        {firstLink}
+                      </div>
+                      <div className="text-[11px] text-gray-400 truncate mt-0.5">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString("vi-VN") : "Liên kết"}
+                      </div>
+                    </div>
+                    <ExternalLink size={15} className="text-gray-400 group-hover:text-blue-600 shrink-0" />
+                  </a>
+                );
+              })
+            )}
+
+            {realLinkItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onOpenMediaArchive?.('links')}
+                className="mt-1 flex h-9 w-full items-center justify-center rounded-md bg-[#f1f3f5] text-[14px] font-semibold text-[#1f2328] hover:bg-[#e2e6ea] transition-colors cursor-pointer"
+              >
+                Xem tất cả
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -605,11 +746,10 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
                     <div
                       key={m._id}
                       onClick={() => setSelectedNewAdmin(m._id)}
-                      className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors border ${
-                        isSelected
-                          ? "bg-blue-50/70 border-blue-200"
-                          : "hover:bg-gray-50 border-transparent"
-                      }`}
+                      className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors border ${isSelected
+                        ? "bg-blue-50/70 border-blue-200"
+                        : "hover:bg-gray-50 border-transparent"
+                        }`}
                     >
                       <input
                         type="radio"
@@ -644,11 +784,10 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
               <button
                 type="button"
                 disabled={!selectedNewAdmin}
-                className={`h-9 rounded-lg px-4 text-sm font-medium text-white transition ${
-                  selectedNewAdmin
-                    ? "bg-[#0052cc] hover:bg-[#0047b3] shadow-sm cursor-pointer"
-                    : "bg-gray-300 cursor-not-allowed"
-                }`}
+                className={`h-9 rounded-lg px-4 text-sm font-medium text-white transition ${selectedNewAdmin
+                  ? "bg-[#0052cc] hover:bg-[#0047b3] shadow-sm cursor-pointer"
+                  : "bg-gray-300 cursor-not-allowed"
+                  }`}
                 onClick={async () => {
                   await handleRemoveMember(userId, selectedNewAdmin);
                   setOpenTransferModal(false);
@@ -674,6 +813,14 @@ const DetailsPanel = ({ selectedConversation, onSelectConversation, onMobileBack
           isOpen={openPinModal}
           onClose={() => setOpenPinModal(false)}
           targetConversation={currentConvFromStore}
+        />
+      )}
+
+      {/* MODAL XEM TRƯỚC TẬP TIN KIỂU ZALO (XEM TRỰC TIẾP KHÔNG CẦN TẢI LẠI) */}
+      {previewFile && (
+        <FileViewerModal
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
         />
       )}
     </div>

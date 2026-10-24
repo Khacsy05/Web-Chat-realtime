@@ -83,6 +83,9 @@ export const getMessages = async (req, res) => {
       content: m.content,
       type: m.type || "text",
       image: m.image || null,
+      fileUrl: m.fileUrl || null,
+      fileName: m.fileName || null,
+      fileSize: m.fileSize || null,
       createdAt: m.createdAt,
       isDeleted: m.isDeleted || false
     }));
@@ -192,6 +195,61 @@ export const sendImage = async (req, res) => {
   }
 };
 
+export const sendFile = async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user._id });
+    const { conversationId } = req.body;
+    const sender = user._id;
+    if (!conversationId || !req.file) {
+      return res.status(400).json({ message: "Thiếu dữ liệu" });
+    }
+
+    // Giới hạn file nhẹ: tối đa 10MB
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (req.file.size > MAX_SIZE) {
+      return res.status(400).json({ message: "File quá lớn! Chỉ cho phép gửi file nhẹ tối đa 10MB." });
+    }
+
+    // Tên file gốc
+    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+    const extIndex = originalName.lastIndexOf(".");
+    const ext = extIndex !== -1 ? originalName.substring(extIndex) : "";
+    const baseName = extIndex !== -1 ? originalName.substring(0, extIndex) : originalName;
+    const sanitizedBase = baseName.replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const uniquePublicId = `${Date.now()}_${sanitizedBase}${ext}`;
+
+    // Upload lên Cloudinary thư mục chat_files với resource_type: "raw" và giữ nguyên đuôi file (.docx, .pdf, .xlsx...)
+    const result = await uploadToCloudinary(req.file.buffer, "chat_files", {
+      resource_type: "raw",
+      public_id: uniquePublicId,
+    });
+    const fileUrl = result.secure_url;
+
+    const message = await Message.create({
+      conversationId,
+      sender,
+      type: "file",
+      content: originalName,
+      fileUrl: fileUrl,
+      fileName: originalName,
+      fileSize: req.file.size
+    });
+
+    const now = new Date();
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: `[Tập tin] ${originalName}`,
+      lastSenderId: sender,
+      lastMessageId: message._id,
+      lastMessageAt: now,
+      updatedAt: now
+    });
+
+    res.json(message);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const getMediaArchive = async (req, res) => {
   try {
     const { conversationId } = req.params;
@@ -205,7 +263,7 @@ export const getMediaArchive = async (req, res) => {
       $or: [
         { type: "image" },
         { type: "file" },
-        { type: "text", content: { $regex: "https?://" } }
+        { type: "text", content: { $regex: "(https?:\\/\\/|www\\.|[a-zA-Z0-9-]+\\.(com|vn|net|org|edu|io|co|me|info|dev))", $options: "i" } }
       ]
     }).sort({ createdAt: -1 });
     const result = messages.map(m => ({
@@ -214,6 +272,9 @@ export const getMediaArchive = async (req, res) => {
       content: m.content,
       type: m.type || "text",
       image: m.image || null,
+      fileUrl: m.fileUrl || null,
+      fileName: m.fileName || m.content || null,
+      fileSize: m.fileSize || null,
       createdAt: m.createdAt,
       isDeleted: m.isDeleted || false
     }));

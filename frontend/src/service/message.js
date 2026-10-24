@@ -62,6 +62,18 @@ const message = {
             throw error.response || { message: "Loi gui anh" };
         }
     },
+    sendFile: async (formData) => {
+        try {
+            const response = await api.post("/message/sendFile", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
+            return response;
+        } catch (error) {
+            throw error.response || { message: "Loi gui tep tin" };
+        }
+    },
     getMediaArchive: async (conversationId) => {
         try {
             const response = await api.get(`/message/getMediaArchive/${conversationId}`);
