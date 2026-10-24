@@ -5,13 +5,15 @@ import useAuthStore from "@/stores/useAuthStore";
 import socket from "@/lib/socket";
 import useNotificationStore from "@/stores/useNotificationStore";
 import useFriendStore from "@/stores/useFriendStore";
-import { toast } from "sonner";
+import NotificationPopup from "./NotificationPopup";
 
 export function AppLayout() {
   const currentUser = useAuthStore((state) => state.user);
   const initNotificationSocket = useNotificationStore((state) => state.initSocket);
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
   const initFriendSocket = useFriendStore((state) => state.initSocket);
+  const popups = useNotificationStore((state) => state.popups);
+  const dismissPopup = useNotificationStore((state) => state.dismissPopup);
 
   useEffect(() => {
     if (!currentUser?.idUser) return;
@@ -48,6 +50,9 @@ export function AppLayout() {
       <main className="flex min-h-0 min-w-0 flex-1 flex-col h-full w-full overflow-hidden bg-white">
         <Outlet />
       </main>
+
+      {/* Floating notification popups */}
+      <NotificationPopup popups={popups} onDismiss={dismissPopup} />
     </div>
   );
 }

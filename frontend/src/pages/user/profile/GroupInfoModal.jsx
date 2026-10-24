@@ -7,6 +7,7 @@ import useChatStore from '@/stores/useChatStore';
 import useAuthStore from '@/stores/useAuthStore';
 import ImageViewer from '@/components/ImageViewer';
 import { getImageUrl } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMobileBack }) => {
@@ -88,10 +89,13 @@ const GroupInfoModal = ({ initialData, onSelectConversation, onOpenMembers, onMo
                 currentUser.idUser,
                 newAdminId
             );
+            toast.success("Rời nhóm thành công");
             if (onSelectConversation) onSelectConversation(null);
             if (onMobileBack) onMobileBack();
         } catch (error) {
             console.error("Lỗi khi roi nhom:", error);
+            const msg = error?.response?.data?.message || "Lỗi khi rời nhóm";
+            toast.error(msg);
         }
     };
     const openConfirmDialog = (type) => {

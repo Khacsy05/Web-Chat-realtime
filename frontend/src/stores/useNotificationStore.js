@@ -8,6 +8,7 @@ const useNotificationStore = create(
   persist(
     (set, get) => ({
       notifications: [],
+      popups: [], // floating popup queue
 
       fetchNotifications: async () => {
         try {
@@ -55,10 +56,50 @@ const useNotificationStore = create(
         });
       },
 
-      removeNotification: (id) => {
+      // --- Popup queue helpers ---
+      addPopup: (notification) => {
+        const popupId = notification.id || `popup-${Date.now()}`;
+        set((state) => ({
+          popups: [
+            ...state.popups,
+            { ...notification, id: popupId },
+          ].slice(-5), // tối đa 5 popup cùng lúc
+        }));
+      },
+
+      dismissPopup: (id) => {
+        set((state) => ({
+          popups: state.popups.filter((p) => p.id !== id),
+        }));
+      },
+
+      removeNotification: async (id) => {
+        try {
+          // Chỉ gọi API nếu là ID MongoDB hợp lệ
+          if (typeof id === "string" && id.length === 24) {
+            notificationService.deleteNotification(id).catch(console.error);
+          }
+        } catch (e) {
+          console.error(e);
+        }
         set((state) => ({
           notifications: state.notifications.filter((n) => n.id !== id),
         }));
+      },
+
+      markAsRead: async (id) => {
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            n.id === id ? { ...n, isRead: true } : n
+          ),
+        }));
+        try {
+          if (typeof id === "string" && id.length === 24) {
+            await notificationService.markOneAsRead(id);
+          }
+        } catch (error) {
+          console.error("Lỗi khi đánh dấu đã đọc:", error);
+        }
       },
 
       removeNotificationByRelatedId: (relatedId, type) => {
@@ -102,36 +143,39 @@ const useNotificationStore = create(
 
         // Khai báo lại các handler
         store.handleFriendRequest = (data) => {
-          store.addNotification({
+          const notif = {
             id: `req-${Date.now()}`,
             type: "friend_request",
             content: data.message,
             relatedId: data.from?._id,
-            avatar: data.from?.avatar
-          });
-          toast.info(data.message);
+            avatar: data.from?.avatar,
+          };
+          store.addNotification(notif);
+          store.addPopup(notif);
         };
 
         store.handleAcceptFriend = (data) => {
-          store.addNotification({
+          const notif = {
             id: `acc-${Date.now()}`,
             type: "accept_friend",
             content: data.message,
             relatedId: data.from?._id,
-            avatar: data.from?.avatar
-          });
-          toast.success(data.message);
+            avatar: data.from?.avatar,
+          };
+          store.addNotification(notif);
+          store.addPopup(notif);
         };
 
         store.handleRejectFriend = (data) => {
-          store.addNotification({
+          const notif = {
             id: `rej-${Date.now()}`,
             type: "reject_friend",
             content: data.message,
             relatedId: data.from?._id,
-            avatar: data.from?.avatar
-          });
-          toast.info(data.message);
+            avatar: data.from?.avatar,
+          };
+          store.addNotification(notif);
+          store.addPopup(notif);
         };
 
         store.handleCancelFriend = (data) => {
@@ -139,23 +183,25 @@ const useNotificationStore = create(
         };
 
         store.handleGroupKick = (data) => {
-          store.addNotification({
+          const notif = {
             id: `kick-${Date.now()}`,
             type: "kick",
             content: data.message,
-            relatedId: data.conversationId
-          });
-          toast.error(data.message);
+            relatedId: data.conversationId,
+          };
+          store.addNotification(notif);
+          store.addPopup(notif);
         };
 
         store.handleUnfriend = (data) => {
-          store.addNotification({
+          const notif = {
             id: `unf-${Date.now()}`,
             type: "unfriend",
             content: data.message,
-            relatedId: data.unfriendedBy
-          });
-          toast.info(data.message);
+            relatedId: data.unfriendedBy,
+          };
+          store.addNotification(notif);
+          store.addPopup(notif);
         };
 
         // Đăng ký listener mới

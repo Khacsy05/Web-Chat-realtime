@@ -158,6 +158,22 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
     return displayName.toLowerCase().includes(searchValue.toLowerCase());
   });
 
+  // Số hội thoại chưa đọc (dùng để hiển thị badge)
+  const unreadConvCount = conversations.filter((item) => {
+    const myStatus = item.membersReadStatus?.find(
+      (s) => String(s.userId) === String(currentUser?.idUser)
+    );
+    return Boolean(
+      item.lastMessage &&
+      String(item.lastSenderId) !== String(currentUser?.idUser) &&
+      (!myStatus || (
+        item.lastMessageId && myStatus.lastSeenMessageId
+          ? String(myStatus.lastSeenMessageId) !== String(item.lastMessageId)
+          : new Date(myStatus.seenAt).getTime() < new Date(item.lastMessageAt || item.updatedAt).getTime()
+      ))
+    );
+  }).length;
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b px-3 pt-3">
@@ -213,13 +229,18 @@ const ChatList = ({ selectedConversationId, onSelectConversation, lastMessageEve
             </span>
             <span
               onClick={() => setTab('unread')}
-              className={`relative cursor-pointer pb-3 transition font-medium
+              className={`relative cursor-pointer pb-3 transition font-medium flex items-center gap-1.5
                 ${tab === 'unread'
                   ? "text-[#234ae8] after:absolute after:left-0 after:right-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-[#234ae8]"
                   : 'text-muted-foreground hover:text-[#234ae8]'
                 }`}
             >
               Chưa đọc
+              {unreadConvCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-extrabold leading-none">
+                  {unreadConvCount > 99 ? "99+" : unreadConvCount}
+                </span>
+              )}
             </span>
           </div>
 
